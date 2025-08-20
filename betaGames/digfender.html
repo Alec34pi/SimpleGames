@@ -2,23 +2,33 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Digfender – Or, Terre & Murs</title>
+  <title>Digfender – Or, Terre & Murs (V2)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html,body { margin:0; background:#0f1220; color:#e6e6f0; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    #ui { position:fixed; inset:16px auto auto 16px; background:#1a1f35; padding:10px 12px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.25); }
-    button { margin-right:8px; border:0; border-radius:8px; padding:8px 10px; background:#2b3568; color:#fff; cursor:pointer; }
+    #ui { position:fixed; inset:16px auto auto 16px; background:#1a1f35; padding:12px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.25); }
+    #row1, #row2 { display:flex; gap:8px; align-items:center; }
+    button { border:0; border-radius:10px; padding:8px 10px; background:#2b3568; color:#fff; cursor:pointer; white-space:nowrap; }
     button.active { background:#5660ad; }
-    #stats { margin-top:8px; font-size:14px; opacity:.85; white-space:pre; }
+    .tower-btn { display:flex; align-items:center; gap:6px; }
+    .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+    #stats { margin-top:8px; font-size:14px; opacity:.9; white-space:pre; }
     canvas { display:block; margin:0 auto; image-rendering: pixelated; }
   </style>
 </head>
 <body>
   <div id="ui">
-    <button id="dig" class="active">⛏️ Creuser (-5 or, +5 terre)</button>
-    <button id="wall">🧱 Mur (50 terre)</button>
-    <button id="tower">🗼 Tourelle (50 or)</button>
-    <button id="start">▶️ Vague</button>
+    <div id="row1">
+      <button id="dig" class="active">⛏️ Creuser (-5 or, +5 terre)</button>
+      <button id="wall">🧱 Mur (50 terre)</button>
+      <button id="start">▶️ Vague</button>
+    </div>
+    <div id="row2" style="margin-top:8px">
+      <button id="tower-yellow" class="tower-btn"><span class="dot" style="background:#ffd54f"></span>Tour jaune</button>
+      <button id="tower-red" class="tower-btn"><span class="dot" style="background:#ef5350"></span>Tour rouge</button>
+      <button id="tower-blue" class="tower-btn"><span class="dot" style="background:#64b5f6"></span>Tour bleue</button>
+      <button id="tower-brown" class="tower-btn"><span class="dot" style="background:#8d6e63"></span>Tour marron</button>
+    </div>
     <div id="stats"></div>
   </div>
   <canvas id="c" width="960" height="576"></canvas>
@@ -31,7 +41,7 @@
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d');
 
-    // États de tuile : 0 = vide (creusé), 1 = roche (plein), 2 = mur (plein posé par le joueur)
+    // Tuiles : 0 = vide (creusé), 1 = roche (plein), 2 = mur (plein posé par le joueur)
     const TILE_EMPTY = 0, TILE_ROCK = 1, TILE_WALL = 2;
 
     const grid = Array.from({length:ROWS}, ()=>Array(COLS).fill(TILE_ROCK));
@@ -40,7 +50,7 @@
     const spawn = { r: 0, c: Math.floor(COLS/2) };
     const goal  = { r: ROWS-1, c: Math.floor(COLS/2) };
 
-    // Ouvre un puits de base vers la sortie
+    // Puits de base vers la sortie
     for (let r=0; r<ROWS; r++) grid[r][goal.c] = TILE_EMPTY;
 
     // BFS distances depuis le but
@@ -76,7 +86,7 @@
         this.x = this.c*TILE + TILE/2;
         this.y = this.r*TILE + TILE/2;
         this.speed = 2; // px/frame
-        this.hp = 30;
+        this.hp = 20;
         this.alive = true;
       }
       step() {
@@ -111,42 +121,63 @@
       }
     }
 
-    // Tourelles
+    // Définition des tours
+    const TOWER_DEFS = {
+      yellow: { name:'jaune', color:'#ffd54f', speed:4, targets:2, range:2, damage:2 },
+      red:    { name:'rouge', color:'#ef5350', speed:5, targets:1, range:3, damage:2 },
+      blue:   { name:'bleue', color:'#64b5f6', speed:1, targets:1, range:5, damage:4 },
+      brown:  { name:'marron', color:'#8d6e63', speed:2, targets:1, range:3, damage:5 },
+    };
+
+    const towerCounts = { yellow:0, red:0, blue:0, brown:0 };
+    const BASE_TOWER_COST = 50; // coût initial par type
+    function towerPrice(type){ return BASE_TOWER_COST + 10 * towerCounts[type]; }
+
     const towers = [];
     class Tower {
-      constructor(r,c){
-        this.r=r; this.c=c;
+      constructor(r,c,def,type){
+        this.type=type;
+        this.r=r; this.c=c; this.def=def;
         this.x=c*TILE + TILE/2;
         this.y=r*TILE + TILE/2;
-        this.range = 120;
+        // conversion des stats de conception → frames/px
+        this.range = def.range * TILE * 2; // 1→64*2, 5→320
         this.cooldown = 0;
-        this.rate = 20; // frames
+        this.rate = Math.max(3, Math.round(30 / def.speed)); // frames entre tirs (60fps approx.)
+        this.damage = def.damage;
+        this.targets = def.targets;
       }
       step(enemies){
         if (this.cooldown>0) { this.cooldown--; return; }
-        let target=null, best=1e9;
+        // collecter cibles dans la portée, triées par proximité
+        const inRange = [];
         for (const e of enemies) {
           if (!e.alive) continue;
           const d = Math.hypot(e.x-this.x, e.y-this.y);
-          if (d<=this.range && d<best){ best=d; target=e; }
+          if (d<=this.range) inRange.push({e, d});
         }
-        if (target){
-          bullets.push(new Bullet(this.x, this.y, target));
+        inRange.sort((a,b)=>a.d-b.d);
+        if (inRange.length){
+          const n = Math.min(this.targets, inRange.length);
+          for (let i=0;i<n;i++) bullets.push(new Bullet(this.x, this.y, inRange[i].e, this.damage));
           this.cooldown = this.rate;
         }
       }
-      draw(){ ctx.fillStyle='#90caf9'; ctx.fillRect(this.c*TILE+8, this.r*TILE+8, TILE-16, TILE-16); }
+      draw(){
+        ctx.fillStyle=this.def.color; ctx.fillRect(this.c*TILE+8, this.r*TILE+8, TILE-16, TILE-16);
+      }
     }
+
     const bullets=[];
     class Bullet{
-      constructor(x,y,target){ this.x=x; this.y=y; this.target=target; this.speed=6; this.alive=true; }
+      constructor(x,y,target,damage){ this.x=x; this.y=y; this.target=target; this.speed=6; this.damage=damage; this.alive=true; }
       step(){
         if (!this.alive || !this.target.alive) { this.alive=false; return; }
         const dx=this.target.x-this.x, dy=this.target.y-this.y;
         const len=Math.hypot(dx,dy)||1;
         this.x+=this.speed*dx/len; this.y+=this.speed*dy/len;
         if (Math.hypot(this.target.x-this.x, this.target.y-this.y)<8){
-          this.target.hit(10); this.alive=false;
+          this.target.hit(this.damage); this.alive=false;
           if (!this.target.alive) gold+=10;
         }
       }
@@ -156,25 +187,34 @@
     // Loop & jeu
     const enemies=[];
     let frame=0, gold=100, dirt=0, wave=0, baseHP=10;
-    let mode='dig'; // 'dig' | 'wall' | 'tower'
+    let mode='dig'; // 'dig' | 'wall' | 'tower-yellow' | 'tower-red' | 'tower-blue' | 'tower-brown'
 
     const ui = {
       digBtn: document.getElementById('dig'),
       wallBtn: document.getElementById('wall'),
-      towerBtn: document.getElementById('tower'),
       startBtn: document.getElementById('start'),
-      stats: document.getElementById('stats')
+      stats: document.getElementById('stats'),
+      btnYellow: document.getElementById('tower-yellow'),
+      btnRed: document.getElementById('tower-red'),
+      btnBlue: document.getElementById('tower-blue'),
+      btnBrown: document.getElementById('tower-brown'),
     };
 
     function setMode(m){
       mode=m;
       ui.digBtn.classList.toggle('active', m==='dig');
       ui.wallBtn.classList.toggle('active', m==='wall');
-      ui.towerBtn.classList.toggle('active', m==='tower');
+      ui.btnYellow.classList.toggle('active', m==='tower-yellow');
+      ui.btnRed.classList.toggle('active', m==='tower-red');
+      ui.btnBlue.classList.toggle('active', m==='tower-blue');
+      ui.btnBrown.classList.toggle('active', m==='tower-brown');
     }
     ui.digBtn.onclick = ()=> setMode('dig');
     ui.wallBtn.onclick = ()=> setMode('wall');
-    ui.towerBtn.onclick = ()=> setMode('tower');
+    ui.btnYellow.onclick = ()=> setMode('tower-yellow');
+    ui.btnRed.onclick = ()=> setMode('tower-red');
+    ui.btnBlue.onclick = ()=> setMode('tower-blue');
+    ui.btnBrown.onclick = ()=> setMode('tower-brown');
     ui.startBtn.onclick = startWave;
 
     canvas.addEventListener('mousedown', e=>{
@@ -201,13 +241,16 @@
           dirt -= 50;
           computeDistances();
         }
-      } else if (mode==='tower'){
-        // Tourelle : 50 or sur case vide et sans tour existante
-        if (gold<50) return;
-        if (grid[r][c]===TILE_EMPTY && !towers.some(t=>t.r===r&&t.c===c)){
-          towers.push(new Tower(r,c));
-          gold -= 50;
-        }
+      } else if (mode.startsWith('tower-')){
+        // Placement d'une tour de type sélectionné : case vide et sans tour existante
+        const type = mode.split('-')[1];
+        if (grid[r][c]!==TILE_EMPTY) return;
+        if (towers.some(t=>t.r===r&&t.c===c)) return;
+        const price = towerPrice(type);
+        if (gold < price) return;
+        towers.push(new Tower(r,c,TOWER_DEFS[type], type));
+        gold -= price;
+        towerCounts[type]++;
       }
     });
 
@@ -241,6 +284,13 @@
       for (let y=0;y<=ROWS;y++){ ctx.beginPath(); ctx.moveTo(0,y*TILE); ctx.lineTo(COLS*TILE,y*TILE); ctx.stroke(); }
     }
 
+    function updateTowerButtons(){
+      ui.btnYellow.textContent = `🗼 Jaune (${towerPrice('yellow')} or)`;
+      ui.btnRed.textContent    = `🗼 Rouge (${towerPrice('red')} or)`;
+      ui.btnBlue.textContent   = `🗼 Bleue (${towerPrice('blue')} or)`;
+      ui.btnBrown.textContent  = `🗼 Marron (${towerPrice('brown')} or)`;
+    }
+
     function loop(){
       frame++;
       // update
@@ -258,6 +308,8 @@
       for (const b of bullets) b.draw();
       for (const e of enemies) e.draw();
 
+      // UI
+      updateTowerButtons();
       ui.stats.textContent =
         `Vague: ${wave}  |  Or: ${gold}  |  Terre: ${dirt}  |  Base: ${baseHP}HP  |  Ennemis: ${enemies.length}`;
 
