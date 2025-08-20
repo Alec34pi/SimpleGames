@@ -86,7 +86,7 @@
         this.x = this.c*TILE + TILE/2;
         this.y = this.r*TILE + TILE/2;
         this.speed = 2; // px/frame
-        this.hp = 20;
+        this.hp = 20 * 1.2**(wave-1)
         this.alive = true;
       }
       step() {
@@ -123,10 +123,10 @@
 
     // Définition des tours
     const TOWER_DEFS = {
-      yellow: { name:'jaune', color:'#ffd54f', speed:4, targets:2, range:2, damage:2 },
-      red:    { name:'rouge', color:'#ef5350', speed:5, targets:1, range:3, damage:2 },
-      blue:   { name:'bleue', color:'#64b5f6', speed:1, targets:1, range:5, damage:4 },
-      brown:  { name:'marron', color:'#8d6e63', speed:2, targets:1, range:3, damage:5 },
+      yellow: { name:'Electrique', color:'#ffd54f', speed:1.2, targets:4, range:2, damage:5 },
+      red:    { name:'Feu', color:'#ef5350', speed:2.5, targets:1, range:3, damage:5 },
+      blue:   { name:'Glace', color:'#64b5f6', speed:0.7, targets:1, range:5, damage:10 },
+      brown:  { name:'terre', color:'#8d6e63', speed:0.3, targets:1, range:2, damage:20 },
     };
 
     const towerCounts = { yellow:0, red:0, blue:0, brown:0 };
@@ -242,9 +242,9 @@
           computeDistances();
         }
       } else if (mode.startsWith('tower-')){
-        // Placement d'une tour de type sélectionné : case vide et sans tour existante
+        // Placement d'une tour de type sélectionné : case solide et sans tour
         const type = mode.split('-')[1];
-        if (grid[r][c]!==TILE_EMPTY) return;
+        if (grid[r][c]!==TILE_ROCK && grid[r][c]!==TILE_WALL) return;
         if (towers.some(t=>t.r===r&&t.c===c)) return;
         const price = towerPrice(type);
         if (gold < price) return;
