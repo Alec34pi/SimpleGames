@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Reversi - SimpleGames</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+  body {
+    background: #1c1c1c;
+    font-family: 'Share Tech Mono', monospace;
+    color: #d8d8d8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 60px);
+    grid-template-rows: repeat(8, 60px);
+    gap: 2px;
+    background: #d8c69e;
+    padding: 5px;
+    border-radius: 12px;
+  }
+  .cell {
+    width: 60px;
+    height: 60px;
+    background: #2c2c2c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .cell:hover {
+    background: #3a3a3a;
+  }
+  .disc {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+  }
+  .black { background: #111; }
+  .white { background: #eee; }
+  #status {
+    margin-top: 20px;
+    font-size: 1.2rem;
+  }
+
+  .container {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid #d8d8d8;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+        width: auto;
+        max-width: 90vw;
+    }
+
+    .back-home {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid #d8d8d8;
+        padding: 8px 14px;
+        border-radius: 8px;
+        color: #fff;
+        text-decoration: none;
+        font-family: 'Share Tech Mono', monospace;
+        transition: background 0.3s, transform 0.3s;
+        z-index: 10;
+    }
+    .back-home:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.05);
+    }
+
+    .restart {
+        margin-top: 15px;
+        padding: 12px 24px;
+        font-size: 1rem;
+        color: white;
+        background: rgba(255, 255, 255, 0.1);
+        border: 3px double #d8d8d8;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .restart {
+        padding: 10px 18px;
+        font-size: 0.9rem;
+    }
+
+    .restart:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: scale(1.05);
+    }
+
+</style>
+</head>
+<body>
+    <a href="../index.html" class="back-home">← Accueil</a>
+
+    <div class="container">
+        <h1>Reversi (1 Joueur vs Bot)</h1>
+        <div id="board"></div>
+        <div id="status">À toi de jouer (Noir)</div>
+
+        <button class="restart" onclick="startGame()">Rejouer</button>
+    </div>
+
+<script>
+function startGame() {
+    location.reload();
+}
+
+const SIZE = 8;
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
+let board = Array(SIZE).fill(null).map(()=>Array(SIZE).fill(null));
+let currentPlayer = "black"; // joueur commence
+
+// Directions possibles
+const directions = [
+  [1,0], [-1,0], [0,1], [0,-1],
+  [1,1], [1,-1], [-1,1], [-1,-1]
+];
+
+// Initialisation
+function initBoard() {
+  for (let r=0;r<SIZE;r++) {
+    for (let c=0;c<SIZE;c++) {
+      const cell = document.createElement("div");
+      cell.classList.add("cell");
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.addEventListener("click", () => handleMove(r,c));
+      boardEl.appendChild(cell);
+    }
+  }
+  // Placement initial
+  board[3][3] = "white";
+  board[3][4] = "black";
+  board[4][3] = "black";
+  board[4][4] = "white";
+  render();
+}
+
+// Vérifie si coup valide et retourne les pions
+function getFlips(row,col,player,apply=false) {
+  if (board[row][col] !== null) return [];
+  const opponent = player==="black" ? "white":"black";
+  let flips = [];
+  for (let [dr,dc] of directions) {
+    let r=row+dr,c=col+dc;
+    let temp=[];
+    while (r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===opponent) {
+      temp.push([r,c]);
+      r+=dr; c+=dc;
+    }
+    if (temp.length && r>=0 && r<SIZE && c>=0 && c<SIZE && board[r][c]===player) {
+      flips = flips.concat(temp);
+    }
+  }
+  if (apply && flips.length) {
+    board[row][col] = player;
+    for (let [r,c] of flips) board[r][c]=player;
+  }
+  return flips;
+}
+
+function hasValidMove(player) {
+  for (let r=0;r<SIZE;r++) {
+    for (let c=0;c<SIZE;c++) {
+      if (getFlips(r,c,player).length) return true;
+    }
+  }
+  return false;
+}
+
+function handleMove(row,col) {
+  if (currentPlayer!=="black") return; // joueur = noir
+  const flips = getFlips(row,col,"black",true);
+  if (!flips.length) return;
+  currentPlayer="white";
+  render();
+  setTimeout(botMove,500);
+}
+
+function botMove() {
+  let moves=[];
+  for (let r=0;r<SIZE;r++) {
+    for (let c=0;c<SIZE;c++) {
+      if (getFlips(r,c,"white").length) moves.push([r,c]);
+    }
+  }
+  if (moves.length) {
+    const [r,c]=moves[Math.floor(Math.random()*moves.length)];
+    getFlips(r,c,"white",true);
+  }
+  currentPlayer="black";
+  render();
+}
+
+function render() {
+  document.querySelectorAll(".cell").forEach(cell=>{
+    cell.innerHTML="";
+    const r=cell.dataset.row, c=cell.dataset.col;
+    if (board[r][c]) {
+      const disc=document.createElement("div");
+      disc.classList.add("disc", board[r][c]);
+      cell.appendChild(disc);
+    }
+  });
+  // Vérifie si partie finie
+  if (!hasValidMove("black") && !hasValidMove("white")) {
+    let blackCount=0, whiteCount=0;
+    board.flat().forEach(v=>{
+      if (v==="black") blackCount++;
+      if (v==="white") whiteCount++;
+    });
+    statusEl.textContent = `Partie terminée ! Noir: ${blackCount} | Blanc: ${whiteCount} → ${blackCount>whiteCount?"Tu gagnes 🎉":"Le bot gagne 🤖"}`;
+  } else {
+    statusEl.textContent = currentPlayer==="black" ? "À toi de jouer (Noir)" : "Tour du bot (Blanc)";
+  }
+}
+
+initBoard();
+</script>
+
+</body>
+</html>

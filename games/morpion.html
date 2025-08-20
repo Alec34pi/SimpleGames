@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Morpion</title>
+  <link rel="icon" href="../img/logo.png">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+
+    body {
+      background: #1c1c1c;
+      font-family: 'Share Tech Mono', monospace;
+      color: white;
+      font-family: 'Share Tech Mono', monospace;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .history::-webkit-scrollbar {
+      width: 12px;
+    }
+
+    .history::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .history::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border: solid 2px #d8d8d8;
+      border-radius: 10px;
+    }
+
+    .history::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .container {
+      display: flex;
+      gap: 60px;
+      padding: 40px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.5);
+      background: rgba(255, 255, 255, 0.1);
+      border: solid 2px #d8d8d8;
+      border-radius: 10px;
+    }
+
+    .left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .left h1 {
+      font-size: 2.8rem;
+      margin-bottom: 20px;
+      color: black;
+      text-shadow: 1px 1px 1px white;
+      letter-spacing: 2px;
+      border-bottom: 3px solid #d8d8d8;
+      padding-bottom: 10px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 110px);
+      grid-template-rows: repeat(3, 110px);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .cell {
+      background: rgba(255, 255, 255, 0.1);
+      border: 4px solid #d8d8d8;
+      border-radius: 10px;
+      font-size: 2.7rem;
+      font-weight: bold;
+      color: white;
+      box-shadow: inset 0 0 10px #d8c69e;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .cell:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.05);
+    }
+
+    .removed {
+      background-color: rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 0 10px red inset;
+    }
+
+    .toBeRemoved {
+      background-color: rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 0 10px red;
+    }
+
+    .message {
+      font-size: 1.3rem;
+      margin-top: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 2px dashed #d8d8d8;
+      max-width: 350px;
+      text-align: center;
+    }
+
+    .restart {
+      margin-top: 15px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 3px double #d8d8d8;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .restart:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.05);
+    }
+
+    .history {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border: 4px ridge #d8d8d8;
+      width: 240px;
+      height: 360px;
+      overflow-y: auto;
+      font-size: 1rem;
+      border-radius: 15px;
+      box-shadow: inset 0 0 10px #d4c2a3;
+      scrollbar-width: thin;
+      scrollbar-color: white transparent;
+    }
+
+    .history h2 {
+      font-size: 1.2rem;
+      margin-top: 0;
+      text-align: center;
+      border-bottom: 2px solid #d8d8d8;
+      padding-bottom: 5px;
+      color: white;
+    }
+
+    .history ul {
+      list-style-type: square;
+      padding-left: 20px;
+    }
+
+    .history li {
+      margin-bottom: 5px;
+    }
+
+    .back-home {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid #d8d8d8;
+      padding: 8px 14px;
+      border-radius: 8px;
+      color: #fff;
+      text-decoration: none;
+      font-family: 'Share Tech Mono', monospace;
+      transition: background 0.3s, transform 0.3s;
+      z-index: 10;
+    }
+    .back-home:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+    }
+
+    @media (max-width: 1000px) {
+      .container {
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        gap: 30px;
+      }
+
+      .board {
+        grid-template-columns: repeat(3, 90px);
+        grid-template-rows: repeat(3, 90px);
+        gap: 6px;
+      }
+
+      .cell {
+        font-size: 2.2rem;
+      }
+
+      .left h1 {
+        font-size: 2.2rem;
+      }
+
+      .history {
+        width: 100%;
+        max-width: 360px;
+        height: auto;
+        max-height: 300px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .board {
+        grid-template-columns: repeat(3, 70px);
+        grid-template-rows: repeat(3, 70px);
+        gap: 5px;
+      }
+
+      .cell {
+        font-size: 1.8rem;
+        border-width: 3px;
+      }
+
+      .message {
+        font-size: 1rem;
+        padding: 8px 12px;
+      }
+
+      .restart {
+        padding: 10px 18px;
+        font-size: 0.9rem;
+      }
+
+      .left h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="../index.html" class="back-home">← Accueil</a>
+
+  <div class="container">
+    <div class="left">
+      <h1>Morpion</h1>
+      <div class="board" id="board"></div>
+      <div class="message" id="message"></div>
+      <button class="restart" onclick="startGame()">Rejouer</button>
+    </div>
+    <div class="history">
+      <h2>Historique</h2>
+      <ul id="historyList"></ul>
+    </div>
+  </div>
+
+  <script>
+    const boardElement = document.getElementById('board');
+    const messageElement = document.getElementById('message');
+    const historyList = document.getElementById('historyList');
+    let board, currentPlayer, gameActive, moveHistory;
+    let playerMoves = [], botMoves = [];
+    let botStarts = false;
+
+    const PLAYER = 'X';
+    const BOT = 'O';
+
+    const cellNames = [
+      'A1', 'B1', 'C1',
+      'A2', 'B2', 'C2',
+      'A3', 'B3', 'C3'
+    ];
+
+    const winningCombos = [
+      [0,1,2], [3,4,5], [6,7,8],
+      [0,3,6], [1,4,7], [2,5,8],
+      [0,4,8], [2,4,6]
+    ];
+
+    function startGame() {
+      board = Array(9).fill("");
+      playerMoves = [];
+      botMoves = [];
+      moveHistory = [];
+      historyList.innerHTML = "";
+      gameActive = true;
+      botStarts = !botStarts;
+      currentPlayer = botStarts ? BOT : PLAYER;
+      renderBoard();
+
+      if (currentPlayer === BOT) {
+        messageElement.textContent = "Le bot commence...";
+        setTimeout(botMove, 500);
+      } else {
+        messageElement.textContent = `À ton tour (${PLAYER})`;
+      }
+    }
+
+    function renderBoard() {
+      boardElement.innerHTML = "";
+      board.forEach((cell, index) => {
+        const cellDiv = document.createElement("div");
+        cellDiv.classList.add("cell");
+        cellDiv.textContent = cell;
+        cellDiv.id = `cell-${index}`;
+        cellDiv.addEventListener("click", () => handleCellClick(index));
+        boardElement.appendChild(cellDiv);
+      });
+
+      highlightOldest();
+    }
+
+
+    function handleCellClick(index) {
+      if (!gameActive || board[index] !== "" || currentPlayer !== PLAYER) return;
+
+      makeMove(index, PLAYER);
+      playerMoves.push(index);
+      if (playerMoves.length > 3) {
+        removeOldest(playerMoves, PLAYER);
+      }
+
+      if (checkWinner(PLAYER)) {
+        messageElement.textContent = "Tu as gagné !";
+        gameActive = false;
+        return;
+      } else if (isDraw()) {
+        messageElement.textContent = "Match nul !";
+        gameActive = false;
+        return;
+      }
+
+      currentPlayer = BOT;
+      messageElement.textContent = "Le bot joue...";
+      setTimeout(botMove, 500);
+    }
+
+    function botMove() {
+      if (!gameActive) return;
+
+      const move = findBestMove();
+      makeMove(move, BOT);
+      botMoves.push(move);
+      if (botMoves.length > 3) {
+        removeOldest(botMoves, BOT);
+      }
+
+      if (checkWinner(BOT)) {
+        messageElement.textContent = "Le bot a gagné !";
+        gameActive = false;
+      } else if (isDraw()) {
+        messageElement.textContent = "Match nul !";
+        gameActive = false;
+      } else {
+        currentPlayer = PLAYER;
+        messageElement.textContent = "À ton tour";
+      }
+    }
+
+    function makeMove(index, player) {
+      board[index] = player;
+      renderBoard();
+      logMove(player === PLAYER ? "Joueur" : "Bot", index);
+    }
+
+    function removeOldest(moveList, player) {
+      const removedIndex = moveList.shift();
+      const cell = document.getElementById(`cell-${removedIndex}`);
+      cell.classList.remove("toBeRemoved");
+      cell.classList.add("removed");
+      setTimeout(() => {
+        board[removedIndex] = "";
+        renderBoard();
+      }, 400);
+    }
+
+    function logMove(who, index) {
+      const li = document.createElement("li");
+      li.textContent = `${who} joue ${cellNames[index]}`;
+      historyList.appendChild(li);
+      historyList.scrollTop = historyList.scrollHeight;
+    }
+
+    function isDraw() {
+      return board.every(cell => cell !== "");
+    }
+
+    function checkWinner(player) {
+      const moves = player === PLAYER ? playerMoves : botMoves;
+      return winningCombos.some(combo =>
+        combo.every(index => moves.includes(index))
+      );
+    }
+
+    function findBestMove() {
+      for (let i = 0; i < board.length; i++) {
+        if (board[i] === "") {
+          board[i] = BOT;
+          botMoves.push(i);
+          if (checkWinner(BOT)) {
+            botMoves.pop();
+            board[i] = "";
+            return i;
+          }
+          botMoves.pop();
+          board[i] = "";
+        }
+      }
+
+      for (let i = 0; i < board.length; i++) {
+        if (board[i] === "") {
+          board[i] = PLAYER;
+          playerMoves.push(i);
+          if (checkWinner(PLAYER)) {
+            playerMoves.pop();
+            board[i] = "";
+            return i;
+          }
+          playerMoves.pop();
+          board[i] = "";
+        }
+      }
+
+      if (board[4] === "") return 4;
+
+      const available = board.map((v, i) => v === "" ? i : null).filter(v => v !== null);
+      return available[Math.floor(Math.random() * available.length)];
+    }
+
+    function highlightOldest() {
+      clearHighlights();
+      if (currentPlayer === PLAYER && playerMoves.length === 3) {
+        const oldIndex = playerMoves[0];
+        const oldCell = document.getElementById(`cell-${oldIndex}`);
+        if (oldCell) oldCell.classList.add("toBeRemoved");
+      }
+    }
+
+    function clearHighlights() {
+      document.querySelectorAll(".cell").forEach(cell => {
+        cell.classList.remove("toBeRemoved");
+      });
+    }
+
+    startGame();
+  </script>
+</body>
+</html>

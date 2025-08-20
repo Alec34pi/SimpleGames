@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>2048</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #1c1c1c;
+            font-family: 'Share Tech Mono', monospace;
+            color: white;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #d8d8d8;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+            width: 400px;
+            max-width: 90vw;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 20px;
+            color: #fff;
+            text-shadow: 1px 1px 1px #aaa;
+            border-bottom: 2px solid #d8d8d8;
+            padding-bottom: 10px;
+        }
+
+        #result {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #ccc;
+        }
+
+        .info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .score-container {
+            text-align: center;
+            width: 70px;
+            height: 60px;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.08);
+            color: white;
+            border: 2px solid #d8d8d8;
+            box-shadow: inset 0 0 10px #d8c69e;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #score {
+            font-size: 1.5rem;
+        }
+
+        .score-title {
+            font-size: 0.8rem;
+            color: #ccc;
+        }
+
+        .grid {
+            display: flex;
+            flex-wrap: wrap;
+            width: 100%;
+            height: 100%;
+            background-color: #333;
+            border-radius: 10px;
+            padding: 7px;
+        }
+
+        .grid div {
+            width: calc(25% - 14px);
+            height: calc(25% - 14px);
+            margin: 7px;
+            border-radius: 6px;
+            background-color: #afa192;
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+            font-size: 2rem;
+            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        @media (max-width: 500px) {
+            .container {
+                width: 90%;
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .grid {
+                height: 360px;
+            }
+
+            .grid div {
+                font-size: 1.5rem;
+            }
+        }
+
+        .restart {
+            margin-top: 15px;
+            padding: 12px 24px;
+            font-size: 1rem;
+            color: white;
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px double #d8d8d8;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .restart {
+            padding: 10px 18px;
+            font-size: 0.9rem;
+        }
+
+        .restart:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+
+        .back-home {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #d8d8d8;
+            padding: 8px 14px;
+            border-radius: 8px;
+            color: #fff;
+            text-decoration: none;
+            font-family: 'Share Tech Mono', monospace;
+            transition: background 0.3s, transform 0.3s;
+            z-index: 10;
+        }
+        .back-home:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-home">← Accueil</a>
+
+    <div class="container">
+        <div class="info">
+            <h1>2048</h1>
+            <div class="score-container">
+                <p class="score-title">score</p>
+                <h2 id="score">0</h2>
+            </div>
+        </div>
+        <p id="result">Essai d'atteindre la case <b>2048</b> !</p>
+        <div class="grid"></div>
+        
+        <button class="restart" onclick="startGame()">Rejouer</button>
+    </div>
+
+<script>
+    function startGame() {
+        location.reload();
+    }
+
+document.addEventListener("DOMContentLoaded", () => {
+    const gridDisplay = document.querySelector(".grid")
+    const scoreDisplay = document.querySelector("#score")
+    const resultDisplay = document.querySelector("#result")
+    const width = 4
+    let squares = []
+    let score = 0
+
+
+    // create the playing board
+    function createBoard() {
+        for (let i = 0; i < width * width; i++) {
+            const square = document.createElement("div")
+            square.innerHTML = 0
+            gridDisplay.appendChild(square)
+            squares.push(square)
+        }
+        generate()
+        generate()
+    }
+    createBoard()
+
+    //generate a new number
+    function generate() {
+        const randomNumber = Math.floor(Math.random() * squares.length)
+        if (squares[randomNumber].innerHTML == 0) {
+            squares[randomNumber].innerHTML = 2
+            checkForGameOver()
+        } else generate()
+    }
+
+    function moveRight() {
+        for (let i = 0; i < 16; i++) {
+            if (i % 4 === 0) {
+                let totalOne = squares[i].innerHTML
+                let totalTwo = squares[i + 1].innerHTML
+                let totalThree = squares[i + 2].innerHTML
+                let totalFour = squares[i + 3].innerHTML
+                let row = [parseInt(totalOne), parseInt(totalTwo), parseInt(totalThree), parseInt(totalFour)]
+
+                let filteredRow = row.filter(num => num)
+                let missing = 4 - filteredRow.length
+                let zeros = Array(missing).fill(0)
+                let newRow = zeros.concat(filteredRow)
+
+                squares[i].innerHTML = newRow[0]
+                squares[i + 1].innerHTML = newRow[1]
+                squares[i + 2].innerHTML = newRow[2]
+                squares[i + 3].innerHTML = newRow[3]
+            }
+        }
+    }
+
+    function moveLeft() {
+        for (let i = 0; i < 16; i++) {
+            if (i % 4 === 0) {
+                let totalOne = squares[i].innerHTML
+                let totalTwo = squares[i + 1].innerHTML
+                let totalThree = squares[i + 2].innerHTML
+                let totalFour = squares[i + 3].innerHTML
+                let row = [parseInt(totalOne), parseInt(totalTwo), parseInt(totalThree), parseInt(totalFour)]
+
+                let filteredRow = row.filter(num => num)
+                let missing = 4 - filteredRow.length
+                let zeros = Array(missing).fill(0)
+                let newRow = filteredRow.concat(zeros)
+
+                squares[i].innerHTML = newRow[0]
+                squares[i + 1].innerHTML = newRow[1]
+                squares[i + 2].innerHTML = newRow[2]
+                squares[i + 3].innerHTML = newRow[3]
+            }
+        }
+    }
+
+    function moveUp() {
+        for (let i = 0; i < 4; i++) {
+            let totalOne = squares[i].innerHTML
+            let totalTwo = squares[i + width].innerHTML
+            let totalThree = squares[i + width * 2].innerHTML
+            let totalFour = squares[i + width * 3].innerHTML
+            let column = [parseInt(totalOne), parseInt(totalTwo), parseInt(totalThree), parseInt(totalFour)]
+
+            let filteredColumn = column.filter(num => num)
+            let missing = 4 - filteredColumn.length
+            let zeros = Array(missing).fill(0)
+            let newColumn = filteredColumn.concat(zeros)
+
+            squares[i].innerHTML = newColumn[0]
+            squares[i + width].innerHTML = newColumn[1]
+            squares[i + width * 2].innerHTML = newColumn[2]
+            squares[i + width * 3].innerHTML = newColumn[3]
+        }
+    }
+
+    function moveDown() {
+        for (let i = 0; i < 4; i++) {
+            let totalOne = squares[i].innerHTML
+            let totalTwo = squares[i + width].innerHTML
+            let totalThree = squares[i + width * 2].innerHTML
+            let totalFour = squares[i + width * 3].innerHTML
+            let column = [parseInt(totalOne), parseInt(totalTwo), parseInt(totalThree), parseInt(totalFour)]
+
+            let filteredColumn = column.filter(num => num)
+            let missing = 4 - filteredColumn.length
+            let zeros = Array(missing).fill(0)
+            let newColumn = zeros.concat(filteredColumn)
+
+            squares[i].innerHTML = newColumn[0]
+            squares[i + width].innerHTML = newColumn[1]
+            squares[i + width * 2].innerHTML = newColumn[2]
+            squares[i + width * 3].innerHTML = newColumn[3]
+        }
+    }
+
+    function combineRow() {
+        for (let i = 0; i < 15; i++) {
+            if (squares[i].innerHTML === squares[i + 1].innerHTML) {
+                let combinedTotal = parseInt(squares[i].innerHTML) + parseInt(squares[i + 1].innerHTML)
+                squares[i].innerHTML = combinedTotal
+                squares[i + 1].innerHTML = 0
+                score += combinedTotal
+                scoreDisplay.innerHTML = score
+            }
+        }
+        checkForWin()
+    }
+
+    function combineColumn() {
+        for (let i = 0; i < 12; i++) {
+            if (squares[i].innerHTML === squares[i + width].innerHTML) {
+                let combinedTotal = parseInt(squares[i].innerHTML) + parseInt(squares[i + width].innerHTML)
+                squares[i].innerHTML = combinedTotal
+                squares[i + width].innerHTML = 0
+                score += combinedTotal
+                scoreDisplay.innerHTML = score
+            }
+        }
+        checkForWin()
+    }
+
+    function control(e) {
+        if (e.key === "ArrowLeft") {
+            keyLeft()
+        } else if (e.key === "ArrowRight") {
+            keyRight()
+        } else if (e.key === "ArrowUp") {
+            keyUp()
+        } else if (e.key === "ArrowDown") {
+            keyDown()
+        }
+    }
+    document.addEventListener("keydown", control)
+
+    function keyLeft() {
+        moveLeft()
+        combineRow()
+        moveLeft()
+        generate()
+    }
+
+    function keyRight() {
+        moveRight()
+        combineRow()
+        moveRight()
+        generate()
+    }
+
+    function keyUp() {
+        moveUp()
+        combineColumn()
+        moveUp()
+        generate()
+    }
+
+    function keyDown() {
+        moveDown()
+        combineColumn()
+        moveDown()
+        generate()
+    }
+
+    function checkForWin() {
+        for (let i = 0; i < squares.length; i++) {
+            if (squares[i].innerHTML == 2048) {
+                resultDisplay.innerHTML = "Tu as gagné !"
+                document.removeEventListener("keydown", control)
+                setTimeout(clear, 3000)
+            }
+        }
+    }
+
+    //check if there are no zeros on the board to lose
+    function checkForGameOver() {
+        let zeros = 0
+        for (let i = 0; i < squares.length; i++) {
+            if (squares[i].innerHTML == 0) {
+                zeros++
+            }
+        }
+        if (zeros === 0) {
+            resultDisplay.innerHTML = "Tu as perdu !"
+            document.removeEventListener("keydown", control)
+            setTimeout(clear, 3000)
+        }
+    }
+
+    function clear() {
+        clearInterval(myTimer)
+    }
+
+    //add colours
+    function addColours() {
+        for (let i = 0; i < squares.length; i++) {
+            if (squares[i].innerHTML == 0) {
+                squares[i].style.backgroundColor = "#1c1c1c";
+                squares[i].style.color = "#1c1c1c";
+            }
+            else if (squares[i].innerHTML == 2) {
+                squares[i].style.backgroundColor = "#3a3a3a";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 4) {
+                squares[i].style.backgroundColor = "#565656";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 8) {
+                squares[i].style.backgroundColor = "#7a5f3c";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 16) {
+                squares[i].style.backgroundColor = "#b28c5a";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 32) {
+                squares[i].style.backgroundColor = "#d8c69e";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 64) {
+                squares[i].style.backgroundColor = "#e0cfa7";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 128) {
+                squares[i].style.backgroundColor = "#a0a078";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 256) {
+                squares[i].style.backgroundColor = "#76a28f";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 512) {
+                squares[i].style.backgroundColor = "#609688";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 1024) {
+                squares[i].style.backgroundColor = "#8e7fa8";
+                squares[i].style.color = "#d8d8d8";
+            }
+            else if (squares[i].innerHTML == 2048) {
+                squares[i].style.backgroundColor = "#d7d4f0";
+                squares[i].style.color = "#d8d8d8";
+            }
+
+        }
+    }
+    addColours()
+
+    let myTimer = setInterval(addColours, 50)
+})
+
+
+
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Digfender – Or, Terre & Murs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html,body { margin:0; background:#0f1220; color:#e6e6f0; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    #ui { position:fixed; inset:16px auto auto 16px; background:#1a1f35; padding:10px 12px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.25); }
+    button { margin-right:8px; border:0; border-radius:8px; padding:8px 10px; background:#2b3568; color:#fff; cursor:pointer; }
+    button.active { background:#5660ad; }
+    #stats { margin-top:8px; font-size:14px; opacity:.85; white-space:pre; }
+    canvas { display:block; margin:0 auto; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <button id="dig" class="active">⛏️ Creuser (-5 or, +5 terre)</button>
+    <button id="wall">🧱 Mur (50 terre)</button>
+    <button id="tower">🗼 Tourelle (50 or)</button>
+    <button id="start">▶️ Vague</button>
+    <div id="stats"></div>
+  </div>
+  <canvas id="c" width="960" height="576"></canvas>
+
+  <script>
+    // --- Paramètres de la grille ---
+    const TILE = 32;
+    const COLS = 30;   // 30 * 32 = 960
+    const ROWS = 18;   // 18 * 32 = 576
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    // États de tuile : 0 = vide (creusé), 1 = roche (plein), 2 = mur (plein posé par le joueur)
+    const TILE_EMPTY = 0, TILE_ROCK = 1, TILE_WALL = 2;
+
+    const grid = Array.from({length:ROWS}, ()=>Array(COLS).fill(TILE_ROCK));
+
+    // Entrée (spawn) et sortie (base)
+    const spawn = { r: 0, c: Math.floor(COLS/2) };
+    const goal  = { r: ROWS-1, c: Math.floor(COLS/2) };
+
+    // Ouvre un puits de base vers la sortie
+    for (let r=0; r<ROWS; r++) grid[r][goal.c] = TILE_EMPTY;
+
+    // BFS distances depuis le but
+    let dist = [];
+    function computeDistances() {
+      dist = Array.from({length:ROWS}, ()=>Array(COLS).fill(Infinity));
+      const q = [];
+      if (grid[goal.r][goal.c] === TILE_EMPTY) {
+        dist[goal.r][goal.c] = 0;
+        q.push(goal);
+      }
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+      while (q.length) {
+        const {r,c} = q.shift();
+        for (const [dr,dc] of dirs) {
+          const nr=r+dr, nc=c+dc;
+          if (nr<0||nr>=ROWS||nc<0||nc>=COLS) continue;
+          if (grid[nr][nc]!==TILE_EMPTY) continue; // traversable uniquement si vide
+          if (dist[nr][nc] > dist[r][c] + 1) {
+            dist[nr][nc] = dist[r][c] + 1;
+            q.push({r:nr,c:nc});
+          }
+        }
+      }
+    }
+    computeDistances();
+
+    // Ennemi basique
+    class Enemy {
+      constructor() {
+        this.r = spawn.r; this.c = spawn.c;
+        grid[this.r][this.c] = TILE_EMPTY; // dégage le spawn si besoin
+        this.x = this.c*TILE + TILE/2;
+        this.y = this.r*TILE + TILE/2;
+        this.speed = 2; // px/frame
+        this.hp = 30;
+        this.alive = true;
+      }
+      step() {
+        if (!this.alive) return;
+        if (dist[this.r][this.c] === Infinity) return; // pas de chemin
+        let best = {r:this.r, c:this.c, d:dist[this.r][this.c]};
+        const opts = [[1,0],[-1,0],[0,1],[0,-1]];
+        for (const [dr,dc] of opts) {
+          const nr=this.r+dr, nc=this.c+dc;
+          if (nr<0||nr>=ROWS||nc<0||nc>=COLS) continue;
+          if (grid[nr][nc]!==TILE_EMPTY) continue;
+          const d = dist[nr][nc];
+          if (d < best.d) best = {r:nr,c:nc,d};
+        }
+        const tx = best.c*TILE + TILE/2;
+        const ty = best.r*TILE + TILE/2;
+        const dx = tx - this.x, dy = ty - this.y;
+        const len = Math.hypot(dx,dy) || 1;
+        if (len < this.speed) { // entre cases
+          this.x = tx; this.y = ty; this.r = best.r; this.c = best.c;
+        } else {
+          this.x += this.speed*dx/len;
+          this.y += this.speed*dy/len;
+        }
+        if (this.r===goal.r && this.c===goal.c) { baseHP -= 1; this.alive = false; }
+      }
+      hit(dmg){ this.hp -= dmg; if (this.hp<=0) this.alive=false; }
+      draw(){
+        if (!this.alive) return;
+        ctx.beginPath(); ctx.arc(this.x,this.y,10,0,Math.PI*2);
+        ctx.fillStyle = '#e76f51'; ctx.fill();
+      }
+    }
+
+    // Tourelles
+    const towers = [];
+    class Tower {
+      constructor(r,c){
+        this.r=r; this.c=c;
+        this.x=c*TILE + TILE/2;
+        this.y=r*TILE + TILE/2;
+        this.range = 120;
+        this.cooldown = 0;
+        this.rate = 20; // frames
+      }
+      step(enemies){
+        if (this.cooldown>0) { this.cooldown--; return; }
+        let target=null, best=1e9;
+        for (const e of enemies) {
+          if (!e.alive) continue;
+          const d = Math.hypot(e.x-this.x, e.y-this.y);
+          if (d<=this.range && d<best){ best=d; target=e; }
+        }
+        if (target){
+          bullets.push(new Bullet(this.x, this.y, target));
+          this.cooldown = this.rate;
+        }
+      }
+      draw(){ ctx.fillStyle='#90caf9'; ctx.fillRect(this.c*TILE+8, this.r*TILE+8, TILE-16, TILE-16); }
+    }
+    const bullets=[];
+    class Bullet{
+      constructor(x,y,target){ this.x=x; this.y=y; this.target=target; this.speed=6; this.alive=true; }
+      step(){
+        if (!this.alive || !this.target.alive) { this.alive=false; return; }
+        const dx=this.target.x-this.x, dy=this.target.y-this.y;
+        const len=Math.hypot(dx,dy)||1;
+        this.x+=this.speed*dx/len; this.y+=this.speed*dy/len;
+        if (Math.hypot(this.target.x-this.x, this.target.y-this.y)<8){
+          this.target.hit(10); this.alive=false;
+          if (!this.target.alive) gold+=10;
+        }
+      }
+      draw(){ ctx.fillStyle='#fff'; ctx.fillRect(this.x-2,this.y-2,4,4); }
+    }
+
+    // Loop & jeu
+    const enemies=[];
+    let frame=0, gold=100, dirt=0, wave=0, baseHP=10;
+    let mode='dig'; // 'dig' | 'wall' | 'tower'
+
+    const ui = {
+      digBtn: document.getElementById('dig'),
+      wallBtn: document.getElementById('wall'),
+      towerBtn: document.getElementById('tower'),
+      startBtn: document.getElementById('start'),
+      stats: document.getElementById('stats')
+    };
+
+    function setMode(m){
+      mode=m;
+      ui.digBtn.classList.toggle('active', m==='dig');
+      ui.wallBtn.classList.toggle('active', m==='wall');
+      ui.towerBtn.classList.toggle('active', m==='tower');
+    }
+    ui.digBtn.onclick = ()=> setMode('dig');
+    ui.wallBtn.onclick = ()=> setMode('wall');
+    ui.towerBtn.onclick = ()=> setMode('tower');
+    ui.startBtn.onclick = startWave;
+
+    canvas.addEventListener('mousedown', e=>{
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const c = Math.floor(mx / TILE);
+      const r = Math.floor(my / TILE);
+      if (r<0||r>=ROWS||c<0||c>=COLS) return;
+      if ((r===spawn.r&&c===spawn.c) || (r===goal.r&&c===goal.c)) return;
+
+      if (mode==='dig'){
+        // Creuser coûte 5 or et donne 5 terre; ne marche que sur roche (1)
+        if (grid[r][c]===TILE_ROCK && gold>=5){
+          grid[r][c] = TILE_EMPTY;
+          gold -= 5;
+          dirt += 5;
+          computeDistances();
+        }
+      } else if (mode==='wall'){
+        // Poser un mur coûte 50 terre; seulement sur case vide
+        if (grid[r][c]===TILE_EMPTY && dirt>=50){
+          grid[r][c] = TILE_WALL;
+          dirt -= 50;
+          computeDistances();
+        }
+      } else if (mode==='tower'){
+        // Tourelle : 50 or sur case vide et sans tour existante
+        if (gold<50) return;
+        if (grid[r][c]===TILE_EMPTY && !towers.some(t=>t.r===r&&t.c===c)){
+          towers.push(new Tower(r,c));
+          gold -= 50;
+        }
+      }
+    });
+
+    function startWave(){
+      wave++;
+      for (let i=0;i<10+wave*2;i++){
+        setTimeout(()=> enemies.push(new Enemy()), i*600);
+      }
+    }
+
+    function drawGrid(){
+      for (let r=0;r<ROWS;r++){
+        for (let c=0;c<COLS;c++){
+          const t = grid[r][c];
+          ctx.fillStyle =
+            t===TILE_ROCK ? '#151933' :
+            t===TILE_WALL ? '#5b3b2e' : // mur (brun chaud distinct)
+            '#222a55'; // vide
+          ctx.fillRect(c*TILE, r*TILE, TILE, TILE);
+        }
+      }
+      // entrée/sortie
+      ctx.fillStyle='#2a9d8f';
+      ctx.fillRect(spawn.c*TILE, spawn.r*TILE, TILE, TILE);
+      ctx.fillStyle='#f4a261';
+      ctx.fillRect(goal.c*TILE, goal.r*TILE, TILE, TILE);
+
+      // quadrillage léger
+      ctx.strokeStyle='rgba(255,255,255,.04)'; ctx.lineWidth=1;
+      for (let x=0;x<=COLS;x++){ ctx.beginPath(); ctx.moveTo(x*TILE,0); ctx.lineTo(x*TILE,ROWS*TILE); ctx.stroke(); }
+      for (let y=0;y<=ROWS;y++){ ctx.beginPath(); ctx.moveTo(0,y*TILE); ctx.lineTo(COLS*TILE,y*TILE); ctx.stroke(); }
+    }
+
+    function loop(){
+      frame++;
+      // update
+      for (const t of towers) t.step(enemies);
+      for (const b of bullets) b.step();
+      for (const e of enemies) e.step();
+      // purge
+      for (let i=bullets.length-1;i>=0;i--) if (!bullets[i].alive) bullets.splice(i,1);
+      for (let i=enemies.length-1;i>=0;i--) if (!enemies[i].alive) enemies.splice(i,1);
+
+      // draw
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      drawGrid();
+      for (const t of towers) t.draw();
+      for (const b of bullets) b.draw();
+      for (const e of enemies) e.draw();
+
+      ui.stats.textContent =
+        `Vague: ${wave}  |  Or: ${gold}  |  Terre: ${dirt}  |  Base: ${baseHP}HP  |  Ennemis: ${enemies.length}`;
+
+      if (baseHP<=0){
+        ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle='#fff'; ctx.font='bold 48px system-ui';
+        ctx.fillText('Défaite !', canvas.width/2-90, canvas.height/2);
+        return;
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>

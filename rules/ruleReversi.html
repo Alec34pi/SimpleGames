@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>SimpleGames - Règles Reversi</title>
+<link rel="icon" href="../img/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+  body {
+    background: #1c1c1c;
+    font-family: 'Share Tech Mono', monospace;
+    color: white;
+    margin: 0; padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 {
+    margin-bottom: 20px;
+    color: #d8d8d8;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+  .rules-box {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid #d8d8d8;
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 600px;
+    width: 90vw;
+    min-height: 200px;
+    color: #d8d8d8;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    margin-bottom: 30px;
+    white-space: pre-wrap;
+  }
+  .btn-start {
+    padding: 14px 28px;
+    font-size: 1.2rem;
+    font-family: 'Share Tech Mono', monospace;
+    border: 2px solid #d8d8d8;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    color: #d8d8d8;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.3s ease;
+  }
+  .btn-start:hover {
+    background: rgba(255,255,255,0.25);
+  }
+  .back-home {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid #d8d8d8;
+    padding: 8px 14px;
+    border-radius: 8px;
+    color: #d8d8d8;
+    text-decoration: none;
+    font-family: 'Share Tech Mono', monospace;
+    transition: background 0.3s, transform 0.3s;
+    z-index: 10;
+  }
+  .back-home:hover {
+    background: rgba(255,255,255,0.25);
+    transform: scale(1.05);
+  }
+
+  .menu-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 2px solid #d8d8d8;
+        border-radius: 10px;
+        color: white;
+        padding: 15px;
+        font-size: 1.1rem;
+        text-decoration: none;
+        transition: all 0.2s ease-in-out;
+        box-shadow: inset 0 0 10px #d8c69e;
+    }
+
+    .menu-btn:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+        transform: scale(1.05);
+        box-shadow: 0 0 15px #d8c69e;
+    }
+</style>
+</head>
+<body>
+
+  <a href="../index.html" class="back-home">← Accueil</a>
+
+  <h1 id="gameTitle">Règles du Reversi</h1>
+  <div class="rules-box" id="rulesText">
+Le Reversi (aussi appelé Othello) est un jeu de stratégie à deux joueurs.
+Un joueur joue avec les pions noirs (●), l'autre avec les pions blancs (○).
+
+🎮 But du jeu :
+- Avoir plus de pions de sa couleur que l'adversaire à la fin de la partie.
+
+📝 Règles :
+1. Le plateau est une grille de 8x8 cases.
+2. Chaque joueur joue à tour de rôle.
+3. Un coup consiste à placer un pion de sa couleur de façon à encadrer au moins un ou plusieurs pions adverses (horizontalement, verticalement ou en diagonale).
+4. Tous les pions adverses encadrés deviennent de la couleur du joueur qui vient de jouer.
+5. Si un joueur n'a pas de coup valide, il doit passer son tour.
+6. La partie se termine lorsque plus aucun joueur ne peut jouer.
+
+Le joueur qui possède le plus de pions de sa couleur remporte la partie !
+  </div>
+
+  <a href="../games/reversi.html" class="menu-btn">C'est parti !</a>
+  
+</body>
+</html>

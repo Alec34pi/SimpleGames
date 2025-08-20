@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Puissance 4 - Bot Amélioré</title>
+  <link rel="icon" href="../img/logo.png">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      background: #1c1c1c;
+      font-family: 'Share Tech Mono', monospace;
+      color: white;
+      margin: 0; padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid #d8d8d8;
+      border-radius: 10px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.5);
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 450px;
+    }
+
+    h1 {
+      color: black;
+      text-shadow: 1px 1px 1px white;
+      letter-spacing: 2px;
+      border-bottom: 3px solid #d8d8d8;
+      padding-bottom: 10px;
+      margin: 0 0 25px 0;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(7, 50px);
+      grid-template-rows: repeat(6, 50px);
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 4px solid #d8d8d8;
+      border-radius: 12px;
+      padding: 10px;
+      box-shadow: inset 0 0 15px #d4c2a3;
+    }
+
+    .cell {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 3px solid #d8d8d8;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: inset 0 0 10px #000000;
+      transition: transform 0.3s ease-in-out, background-color 0.3s ease-in-out;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .cell:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+
+    .player {
+      background-color: #e0b456;
+      box-shadow: 0 0 10px #d8c69e inset;
+    }
+
+    .bot {
+      background-color: #8babc8;
+      box-shadow: 0 0 10px #a2b7d9 inset;
+    }
+
+    .message {
+      margin-top: 25px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 2px dashed #d8d8d8;
+      width: 100%;
+      text-align: center;
+      font-size: 1.2rem;
+      min-height: 40px;
+      user-select: none;
+      color: white;
+      box-shadow: inset 0 0 8px #d4c2a3;
+    }
+
+    button.restart {
+      margin-top: 20px;
+      padding: 12px 28px;
+      font-size: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 3px double #d8d8d8;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      color: white;
+    }
+    button.restart:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: scale(1.05);
+    }
+
+    .back-home {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid #d8d8d8;
+      padding: 8px 14px;
+      border-radius: 8px;
+      color: #fff;
+      text-decoration: none;
+      font-family: 'Share Tech Mono', monospace;
+      transition: background 0.3s, transform 0.3s;
+      z-index: 10;
+    }
+    .back-home:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+    }
+
+    @media (max-width: 500px) {
+      .container {
+        width: 100%;
+        padding: 20px;
+      }
+      .board {
+        grid-template-columns: repeat(7, 40px);
+        grid-template-rows: repeat(6, 40px);
+        gap: 6px;
+        padding: 8px;
+      }
+      .cell {
+        width: 40px;
+        height: 40px;
+        border-width: 2px;
+      }
+      button.restart {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="../index.html" class="back-home">← Accueil</a>
+
+  <div class="container">
+    <h1>Puissance 4</h1>
+    <div id="board" class="board"></div>
+    <div id="message" class="message"></div>
+    <button class="restart" onclick="startGame()">Rejouer</button>
+  </div>
+
+  <script>
+    const ROWS = 6;
+    const COLS = 7;
+    const PLAYER = 'X';
+    const BOT = 'O';
+
+    let board = [];
+    let currentPlayer = PLAYER;
+    let gameActive = true;
+
+    const boardElement = document.getElementById('board');
+    const message = document.getElementById('message');
+
+    function startGame() {
+      board = Array.from({ length: ROWS }, () => Array(COLS).fill(''));
+      currentPlayer = PLAYER;
+      gameActive = true;
+      message.textContent = "À toi de jouer !";
+      renderBoard();
+    }
+
+    function renderBoard() {
+      boardElement.innerHTML = '';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          if (board[r][c] === PLAYER) cell.classList.add('player');
+          if (board[r][c] === BOT) cell.classList.add('bot');
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.addEventListener('click', () => handlePlayerMove(c));
+          boardElement.appendChild(cell);
+        }
+      }
+    }
+
+    function handlePlayerMove(col) {
+      if (!gameActive || currentPlayer !== PLAYER) return;
+
+      const row = findAvailableRow(col);
+      if (row === -1) return;
+
+      placeToken(row, col, PLAYER);
+
+      if (checkWinner(row, col, PLAYER)) {
+        message.textContent = "Tu as gagné !";
+        gameActive = false;
+        renderBoard();
+        return;
+      }
+
+      if (isDraw()) {
+        message.textContent = "Match nul !";
+        gameActive = false;
+        renderBoard();
+        return;
+      }
+
+      currentPlayer = BOT;
+      message.textContent = "Le bot réfléchit...";
+      renderBoard();
+
+      setTimeout(botMove, 600);
+    }
+
+    function findAvailableRow(col) {
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (board[r][col] === '') return r;
+      }
+      return -1;
+    }
+
+    function placeToken(row, col, player) {
+      board[row][col] = player;
+      renderBoard();
+    }
+
+    function checkWinner(row, col, player) {
+      const directions = [
+        [0,1], [1,0], [1,1], [1,-1]
+      ];
+
+      for (const [dr, dc] of directions) {
+        let count = 1;
+        // Compte vers l'avant
+        for (let i = 1; i < 4; i++) {
+          const r = row + dr*i;
+          const c = col + dc*i;
+          if (r < 0 || r >= ROWS || c < 0 || c >= COLS || board[r][c] !== player) break;
+          count++;
+        }
+        // Compte vers l'arrière
+        for (let i = 1; i < 4; i++) {
+          const r = row - dr*i;
+          const c = col - dc*i;
+          if (r < 0 || r >= ROWS || c < 0 || c >= COLS || board[r][c] !== player) break;
+          count++;
+        }
+        if (count >= 4) return true;
+      }
+      return false;
+    }
+
+    function isDraw() {
+      return board[0].every(cell => cell !== '');
+    }
+
+    // Fonction pour compter alignement partiel du bot (utile pour la stratégie)
+    function countAlignments(row, col, player) {
+      let max = 0;
+      const directions = [
+        [0, 1], [1, 0], [1, 1], [1, -1]
+      ];
+
+      for (const [dr, dc] of directions) {
+        let count = 1;
+        for (let step = 1; step < 4; step++) {
+          const r = row + dr * step;
+          const c = col + dc * step;
+          if (r >= 0 && r < ROWS && c >= 0 && c < COLS && board[r][c] === player) {
+            count++;
+          } else break;
+        }
+        for (let step = 1; step < 4; step++) {
+          const r = row - dr * step;
+          const c = col - dc * step;
+          if (r >= 0 && r < ROWS && c >= 0 && c < COLS && board[r][c] === player) {
+            count++;
+          } else break;
+        }
+        if (count > max) max = count;
+      }
+      return max;
+    }
+
+    function botMove() {
+      if (!gameActive) return;
+
+      // 1) Chercher un coup gagnant
+      for (let col = 0; col < COLS; col++) {
+        const row = findAvailableRow(col);
+        if (row === -1) continue;
+        board[row][col] = BOT;
+        if (checkWinner(row, col, BOT)) {
+          placeToken(row, col, BOT);
+          message.textContent = "Le bot a gagné !";
+          gameActive = false;
+          return;
+        }
+        board[row][col] = '';
+      }
+
+      // 2) Bloquer le joueur s'il peut gagner
+      for (let col = 0; col < COLS; col++) {
+        const row = findAvailableRow(col);
+        if (row === -1) continue;
+        board[row][col] = PLAYER;
+        if (checkWinner(row, col, PLAYER)) {
+          board[row][col] = BOT;
+          placeToken(row, col, BOT);
+          currentPlayer = PLAYER;
+          message.textContent = "À toi de jouer !";
+          return;
+        }
+        board[row][col] = '';
+      }
+
+      // 3) Chercher à aligner ses pions
+      let bestCol = -1;
+      let bestScore = -1;
+      for (let col = 0; col < COLS; col++) {
+        const row = findAvailableRow(col);
+        if (row === -1) continue;
+        board[row][col] = BOT;
+        const score = countAlignments(row, col, BOT);
+        if (score > bestScore) {
+          bestScore = score;
+          bestCol = col;
+        }
+        board[row][col] = '';
+      }
+      if (bestCol !== -1) {
+        const row = findAvailableRow(bestCol);
+        placeToken(row, bestCol, BOT);
+        if (checkWinner(row, bestCol, BOT)) {
+          message.textContent = "Le bot a gagné !";
+          gameActive = false;
+          return;
+        }
+        if (isDraw()) {
+          message.textContent = "Match nul !";
+          gameActive = false;
+          return;
+        }
+        currentPlayer = PLAYER;
+        message.textContent = "À toi de jouer !";
+        return;
+      }
+
+      // 4) Sinon joue aléatoirement (dernier recours)
+      let freeCols = [];
+      for (let col = 0; col < COLS; col++) {
+        if (findAvailableRow(col) !== -1) freeCols.push(col);
+      }
+      if (freeCols.length > 0) {
+        const randCol = freeCols[Math.floor(Math.random() * freeCols.length)];
+        const row = findAvailableRow(randCol);
+        placeToken(row, randCol, BOT);
+        if (checkWinner(row, randCol, BOT)) {
+          message.textContent = "Le bot a gagné !";
+          gameActive = false;
+          return;
+        }
+        if (isDraw()) {
+          message.textContent = "Match nul !";
+          gameActive = false;
+          return;
+        }
+        currentPlayer = PLAYER;
+        message.textContent = "À toi de jouer !";
+      }
+    }
+
+    startGame();
+  </script>
+</body>
+</html>

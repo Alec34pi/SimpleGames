@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="img/logo.png">
+  <title>SimpleGames</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        background-color: #1c1c1c;
+        font-family: 'Share Tech Mono', monospace;
+        color: white;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .container {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid #d8d8d8;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+        width: 400px;
+        max-width: 90vw;
+    }
+
+    h1 {
+        font-size: 2.2rem;
+        margin-bottom: 20px;
+        color: #fff;
+        text-shadow: 1px 1px 1px #aaa;
+        border-bottom: 2px solid #d8d8d8;
+        padding-bottom: 10px;
+    }
+
+    .subtitle {
+        font-size: 1.2rem;
+        margin-bottom: 25px;
+        color: #ccc;
+    }
+
+    .menu-options {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .menu-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 2px solid #d8d8d8;
+        border-radius: 10px;
+        color: white;
+        padding: 15px;
+        font-size: 1.1rem;
+        text-decoration: none;
+        transition: all 0.2s ease-in-out;
+        box-shadow: inset 0 0 10px #d8c69e;
+    }
+
+    .menu-btn:hover {
+        background-color: rgba(255, 255, 255, 0.15);
+        transform: scale(1.05);
+        box-shadow: 0 0 15px #d8c69e;
+    }
+
+    @media (max-width: 500px) {
+        .container {
+            width: 90%;
+            padding: 20px;
+        }
+
+        .menu-btn {
+            font-size: 1rem;
+            padding: 12px;
+        }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Bienvenue sur <span style="color: #4CAF50;">SimpleGames</span></h1>
+    
+    <div class="menu-options">
+      <p class="subtitle">Jeux contre un bot</p>
+      <a href="./rules/ruleMorpion.html" class="menu-btn">Morpion</a>
+      <a href="./rules/rulePuissance4.html" class="menu-btn">Puissance 4</a>
+      <a href="./rules/ruleNim.html" class="menu-btn">Jeu de Nim</a>
+      <a href="./rules/ruleReversi.html" class="menu-btn">Reversi</a>
+      
+      <p class="subtitle">Jeux en solo</p>
+      <a href="./rules/ruleSnake.html" class="menu-btn">Snake</a>
+      <a href="./rules/rulePong.html" class="menu-btn">Pong</a>
+      <a href="./rules/rule2048.html" class="menu-btn">2048</a>
+
+      
+      <p class="subtitle">Jeux en développement</p>
+      <a href="./betaGames/digfender.html" class="menu-btn">digFender</a>
+    </div>
+  </div>
+</body>
+</html>

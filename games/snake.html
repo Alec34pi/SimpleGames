@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Snake – SimpleGames</title>
+  <link rel="icon" href="../img/logo.png">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      background: #1c1c1c;
+      font-family: 'Share Tech Mono', monospace;
+      color: white;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.4s ease-in-out;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid #d8d8d8;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    canvas {
+      background: rgba(255, 255, 255, 0.08);
+      border: 3px solid #d8d8d8;
+      border-radius: 10px;
+      box-shadow: inset 0 0 10px #d8c69e;
+    }
+
+    h1 {
+      color: black;
+      text-shadow: 1px 1px 1px white;
+      letter-spacing: 2px;
+      border-bottom: 3px solid #d8d8d8;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+      width: 100%;
+    }
+
+    .score {
+      margin-top: 15px;
+      font-size: 1.2rem;
+    }
+
+    .back-home {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid #d8d8d8;
+      padding: 8px 14px;
+      border-radius: 8px;
+      color: #fff;
+      text-decoration: none;
+      font-family: 'Share Tech Mono', monospace;
+      transition: background 0.3s, transform 0.3s;
+      z-index: 10;
+    }
+    .back-home:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+    }
+    .message {
+        margin-top: 10px;
+        font-size: 1.1rem;
+        color: #d8d8d8;
+        text-align: center;
+        min-height: 24px;
+    }
+
+  </style>
+</head>
+<body>
+  <a href="../index.html" class="back-home">← Accueil</a>
+
+  <div class="container">
+    <h1>Snake</h1>
+    <canvas id="game" width="400" height="400"></canvas>
+    <div class="score" id="score">Score : 0</div>
+    <div id="message" class="message"></div>
+  </div>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      document.body.style.opacity = '1';
+    });
+
+    document.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', e => {
+        const target = link.getAttribute('href');
+        if (target && !target.startsWith('#')) {
+          e.preventDefault();
+          document.body.style.opacity = '0';
+          setTimeout(() => {
+            window.location.href = target;
+          }, 400);
+        }
+      });
+    });
+
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const gridSize = 20;
+    const tileCount = canvas.width / gridSize;
+
+    let snake = [{ x: 10, y: 10 }];
+    let direction = { x: 0, y: 0 };
+    let apple = { x: 5, y: 5 };
+    let score = 0;
+    let gameInterval;
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Snake
+      ctx.fillStyle = "#d8d8d8";
+      snake.forEach((segment, index) => {
+        ctx.fillStyle = index === 0 ? "#b5b57a" : "#d8d8d8";
+        ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+      });
+
+      // Apple
+      ctx.fillStyle = "#ff5050";
+      ctx.fillRect(apple.x * gridSize, apple.y * gridSize, gridSize - 2, gridSize - 2);
+    }
+
+    function showMessage(text, duration = 3000) {
+        const msg = document.getElementById("message");
+        msg.textContent = text;
+        if (duration > 0) {
+            setTimeout(() => {
+            msg.textContent = "";
+            }, duration);
+        }
+    }
+
+    function update() {
+      const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+
+      // Collision walls
+      if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+        return endGame();
+      }
+
+      // Collision self
+      if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+        return endGame();
+      }
+
+      snake.unshift(head);
+
+      // Eat apple
+      if (head.x === apple.x && head.y === apple.y) {
+        score++;
+        document.getElementById("score").textContent = "Score : " + score;
+        placeApple();
+      } else {
+        snake.pop();
+      }
+
+      draw();
+    }
+
+    function placeApple() {
+      let newPos;
+      do {
+        newPos = {
+          x: Math.floor(Math.random() * tileCount),
+          y: Math.floor(Math.random() * tileCount)
+        };
+      } while (snake.some(segment => segment.x === newPos.x && segment.y === newPos.y));
+      apple = newPos;
+    }
+
+    function endGame() {
+      clearInterval(gameInterval);
+      showMessage("💀 Tu as perdu !");
+      location.reload();
+    }
+
+    document.addEventListener("keydown", (e) => {
+      switch (e.key) {
+        case "ArrowUp":
+        case "w":
+          if (direction.y !== 1) direction = { x: 0, y: -1 };
+          break;
+        case "ArrowDown":
+        case "s":
+          if (direction.y !== -1) direction = { x: 0, y: 1 };
+          break;
+        case "ArrowLeft":
+        case "a":
+          if (direction.x !== 1) direction = { x: -1, y: 0 };
+          break;
+        case "ArrowRight":
+        case "d":
+          if (direction.x !== -1) direction = { x: 1, y: 0 };
+          break;
+      }
+    });
+
+    function startGame() {
+        direction = { x: 0, y: 0 };
+        snake = [{ x: 10, y: 10 }];
+        score = 0;
+        placeApple();
+        document.getElementById("score").textContent = "Score : " + score;
+    }   
+
+    startGame(); // initialise le jeu sans le lancer
+
+    document.addEventListener("keydown", handleFirstKey, { once: true });
+
+    function handleFirstKey(e) {
+        switch (e.key) {
+            case "ArrowUp":
+            case "w":
+            direction = { x: 0, y: -1 };
+            break;
+            case "ArrowDown":
+            case "s":
+            direction = { x: 0, y: 1 };
+            break;
+            case "ArrowLeft":
+            case "a":
+            direction = { x: -1, y: 0 };
+            break;
+            case "ArrowRight":
+            case "d":
+            direction = { x: 1, y: 0 };
+            break;
+            default:
+            document.addEventListener("keydown", handleFirstKey, { once: true }); // attendre une touche valide
+            return;
+        }
+
+        gameInterval = setInterval(update, 120);
+    }
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>SimpleGames - Pong</title>
+  <link rel="icon" href="../img/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+  body {
+    background: #1c1c1c;
+    font-family: 'Share Tech Mono', monospace;
+    color: white;
+    margin: 0; padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    user-select: none;
+  }
+  .container {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid #d8d8d8;
+    border-radius: 10px;
+    padding: 20px 30px 30px 30px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 480px;
+    max-width: 95vw;
+    height: 600px;
+    position: relative;
+  }
+  h1 {
+    margin-bottom: 15px;
+    color: black;
+    text-shadow: 1px 1px 1px white;
+    letter-spacing: 2px;
+    border-bottom: 3px solid #d8d8d8;
+    padding-bottom: 8px;
+    width: 100%;
+    text-align: center;
+  }
+  #pongCanvas {
+    background: #d8d8d8;
+    border-radius: 12px;
+    box-shadow: inset 0 0 20px #969645;
+    cursor: none;
+  }
+  .scoreboard {
+    margin-top: 10px;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    font-size: 1.5rem;
+    color: #1c1c1c;
+    font-weight: bold;
+  }
+  .message {
+    margin-top: 12px;
+    width: 100%;
+    min-height: 30px;
+    text-align: center;
+    font-size: 1.1rem;
+    color: #1c1c1c;
+    font-weight: 600;
+  }
+  button {
+    margin-top: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 3px double #d8d8d8;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    cursor: pointer;
+    color: #1c1c1c;
+    transition: transform 0.2s;
+    user-select: none;
+  }
+  button:hover {
+    transform: scale(1.05);
+  }
+
+  .back-home {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid #d8d8d8;
+    padding: 8px 14px;
+    border-radius: 8px;
+    color: #fff;
+    text-decoration: none;
+    font-family: 'Share Tech Mono', monospace;
+    transition: background 0.3s, transform 0.3s;
+    z-index: 10;
+  }
+  .back-home:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+  }
+  .message {
+    margin-top: 10px;
+    font-size: 1.1rem;
+    color: #d8d8d8;
+    text-align: center;
+    min-height: 24px;
+  }
+</style>
+</head>
+<body>
+  <a href="../index.html" class="back-home">← Accueil</a>
+  
+  <div class="container">
+    <h1>Pong - SimpleGames</h1>
+    <canvas id="pongCanvas" width="450" height="400"></canvas>
+    <div class="scoreboard">
+      <div>Joueur : <span id="playerScore">0</span></div>
+      <div>Bot : <span id="botScore">0</span></div>
+    </div>
+    <div class="message" id="message">Utilise les touches W/S pour bouger la raquette.</div>
+    <button id="restartBtn">Recommencer</button>
+  </div>
+
+<script>
+  const canvas = document.getElementById('pongCanvas');
+  const ctx = canvas.getContext('2d');
+  const playerScoreEl = document.getElementById('playerScore');
+  const botScoreEl = document.getElementById('botScore');
+  const messageEl = document.getElementById('message');
+  const restartBtn = document.getElementById('restartBtn');
+
+  const WIDTH = canvas.width;
+  const HEIGHT = canvas.height;
+
+  // Raquettes
+  const PADDLE_WIDTH = 12;
+  const PADDLE_HEIGHT = 70;
+  const PADDLE_SPEED = 6;
+
+  // Balle
+  const BALL_SIZE = 14;
+
+  // Positions
+  let playerY = (HEIGHT - PADDLE_HEIGHT) / 2;
+  let botY = (HEIGHT - PADDLE_HEIGHT) / 2;
+
+  // Vitesse raquette joueur (Y)
+  let playerMoveUp = false;
+  let playerMoveDown = false;
+
+  // Balle
+  let ballX, ballY, ballSpeedX, ballSpeedY;
+
+  // Scores
+  let playerScore = 0;
+  let botScore = 0;
+  const MAX_SCORE = 7;
+
+  // Jeu actif
+  let gameActive = true;
+
+  function resetBall() {
+    ballX = WIDTH / 2 - BALL_SIZE / 2;
+    ballY = HEIGHT / 2 - BALL_SIZE / 2;
+
+    // Angle aléatoire de départ
+    let angle = (Math.random() * Math.PI / 4) - Math.PI / 8; // entre -22.5° et +22.5°
+    ballSpeedX = (Math.random() < 0.5 ? -1 : 1) * 5 * Math.cos(angle);
+    ballSpeedY = 5 * Math.sin(angle);
+  }
+
+  function drawRect(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+  }
+
+  function drawCircle(x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawNet() {
+    const netWidth = 4;
+    const netHeight = 20;
+    const netColor = '#969645';
+    let y = 0;
+    while (y < HEIGHT) {
+      drawRect(WIDTH / 2 - netWidth/2, y, netWidth, netHeight, netColor);
+      y += netHeight * 2;
+    }
+  }
+
+  function draw() {
+    // Fond
+    drawRect(0, 0, WIDTH, HEIGHT, '#d8d8d8');
+
+    // Net
+    drawNet();
+
+    // Raquettes
+    drawRect(10, playerY, PADDLE_WIDTH, PADDLE_HEIGHT, '#2b2b1b');
+    drawRect(WIDTH - 10 - PADDLE_WIDTH, botY, PADDLE_WIDTH, PADDLE_HEIGHT, '#2b2b1b');
+
+    // Balle
+    drawCircle(ballX + BALL_SIZE/2, ballY + BALL_SIZE/2, BALL_SIZE/2, '#2b2b1b');
+  }
+
+  function update() {
+    if (!gameActive) return;
+
+    // Déplacement joueur
+    if (playerMoveUp) {
+      playerY -= PADDLE_SPEED;
+      if (playerY < 0) playerY = 0;
+    }
+    if (playerMoveDown) {
+      playerY += PADDLE_SPEED;
+      if (playerY + PADDLE_HEIGHT > HEIGHT) playerY = HEIGHT - PADDLE_HEIGHT;
+    }
+
+    // Déplacement bot (simple IA)
+    const botCenter = botY + PADDLE_HEIGHT / 2;
+    const ballCenter = ballY + BALL_SIZE / 2;
+    const botSpeed = 4.5;
+
+    if (botCenter < ballCenter - 10) {
+      botY += botSpeed;
+      if (botY + PADDLE_HEIGHT > HEIGHT) botY = HEIGHT - PADDLE_HEIGHT;
+    } else if (botCenter > ballCenter + 10) {
+      botY -= botSpeed;
+      if (botY < 0) botY = 0;
+    }
+
+    // Déplacement balle
+    ballX += ballSpeedX;
+    ballY += ballSpeedY;
+
+    // Rebonds sur les murs hauts/bas
+    if (ballY < 0) {
+      ballY = 0;
+      ballSpeedY = -ballSpeedY;
+    } else if (ballY + BALL_SIZE > HEIGHT) {
+      ballY = HEIGHT - BALL_SIZE;
+      ballSpeedY = -ballSpeedY;
+    }
+
+    // Rebonds raquette joueur
+    if (ballX <= 10 + PADDLE_WIDTH &&
+        ballX >= 10 &&
+        ballY + BALL_SIZE >= playerY &&
+        ballY <= playerY + PADDLE_HEIGHT) {
+
+      ballX = 10 + PADDLE_WIDTH;
+      ballSpeedX = -ballSpeedX;
+
+      // Ajuster la vitesse verticale selon la position d'impact
+      let collidePoint = (ballY + BALL_SIZE/2) - (playerY + PADDLE_HEIGHT/2);
+      collidePoint = collidePoint / (PADDLE_HEIGHT/2);
+      let angleRad = collidePoint * (Math.PI/4); // max 45° angle
+      let speed = Math.sqrt(ballSpeedX*ballSpeedX + ballSpeedY*ballSpeedY);
+      ballSpeedX = speed * Math.cos(angleRad);
+      ballSpeedY = speed * Math.sin(angleRad);
+      if (ballSpeedX < 0) ballSpeedX = -ballSpeedX; // toujours vers la droite
+    }
+
+    // Rebonds raquette bot
+    if (ballX + BALL_SIZE >= WIDTH - 10 - PADDLE_WIDTH &&
+        ballX + BALL_SIZE <= WIDTH - 10 &&
+        ballY + BALL_SIZE >= botY &&
+        ballY <= botY + PADDLE_HEIGHT) {
+
+      ballX = WIDTH - 10 - PADDLE_WIDTH - BALL_SIZE;
+      ballSpeedX = -ballSpeedX;
+
+      let collidePoint = (ballY + BALL_SIZE/2) - (botY + PADDLE_HEIGHT/2);
+      collidePoint = collidePoint / (PADDLE_HEIGHT/2);
+      let angleRad = collidePoint * (Math.PI/4);
+      let speed = Math.sqrt(ballSpeedX*ballSpeedX + ballSpeedY*ballSpeedY);
+      ballSpeedX = -speed * Math.cos(angleRad);
+      ballSpeedY = speed * Math.sin(angleRad);
+      if (ballSpeedX > 0) ballSpeedX = -ballSpeedX; // toujours vers la gauche
+    }
+
+    // Buts
+    if (ballX < 0) {
+      // Bot marque
+      botScore++;
+      botScoreEl.textContent = botScore;
+      messageEl.textContent = "Le bot marque !";
+      resetBall();
+      if (botScore >= MAX_SCORE) endGame(false);
+    } else if (ballX + BALL_SIZE > WIDTH) {
+      // Joueur marque
+      playerScore++;
+      playerScoreEl.textContent = playerScore;
+      messageEl.textContent = "Tu marques un point !";
+      resetBall();
+      if (playerScore >= MAX_SCORE) endGame(true);
+    }
+  }
+
+  function endGame(playerWon) {
+    gameActive = false;
+    if (playerWon) {
+      messageEl.textContent = "🎉 Bravo, tu as gagné !";
+    } else {
+      messageEl.textContent = "😞 Le bot a gagné, retente ta chance.";
+    }
+  }
+
+  function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Événements clavier
+  window.addEventListener('keydown', e => {
+    if (!gameActive) return;
+    if (e.key === 'w' || e.key === 'W') playerMoveUp = true;
+    else if (e.key === 's' || e.key === 'S') playerMoveDown = true;
+  });
+  window.addEventListener('keyup', e => {
+    if (e.key === 'w' || e.key === 'W') playerMoveUp = false;
+    else if (e.key === 's' || e.key === 'S') playerMoveDown = false;
+  });
+
+  restartBtn.addEventListener('click', () => {
+    playerScore = 0;
+    botScore = 0;
+    playerScoreEl.textContent = playerScore;
+    botScoreEl.textContent = botScore;
+    messageEl.textContent = "Utilise les touches W/S pour bouger la raquette.";
+    gameActive = true;
+    resetBall();
+  });
+
+  // Initialisation
+  resetBall();
+  gameLoop();
+</script>
+</body>
+</html>
