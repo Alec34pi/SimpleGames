@@ -2,42 +2,114 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Digfender – Or, Terre & Murs (V3)</title>
+  <title>Digfender – Or, Terre & Murs (V4)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html,body { margin:0; background:#0f1220; color:#e6e6f0; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    #ui { position:fixed; inset:16px auto auto 16px; background:#1a1f35; padding:12px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.25); }
-    #row1, #row2 { display:flex; gap:8px; align-items:center; }
+    #ui { position:fixed; inset:auto auto 16px 16px; background:#1a1f35; padding:12px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.25); }
+    #row1, #row2, #row3 { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     button { border:0; border-radius:10px; padding:8px 10px; background:#2b3568; color:#fff; cursor:pointer; white-space:nowrap; }
     button.active { background:#5660ad; }
+    button[disabled] { opacity:.5; cursor:not-allowed; }
     .tower-btn { display:flex; align-items:center; gap:6px; }
     .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
     #stats { margin-top:8px; font-size:14px; opacity:.9; white-space:pre; }
-    #upgradeBtn {
-      position:absolute; display:none; background:#3c5a2a; padding:6px 10px;
-      border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,.3);
-    }
+    #upgradeBtn { position:absolute; display:none; background:#3c5a2a; padding:6px 10px; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,.3); }
     canvas { display:block; margin:0 auto; image-rendering: pixelated; }
+
+    /* --- Arbre de compétences --- */
+    #skillBtn { background:#24527a; }
+    #skillModal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:10; }
+    #skillPanel { width:min(900px, 92vw); background:#161a2e; border-radius:14px; padding:16px 16px 24px; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+    #skillHeader { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    #skillHeader h2 { margin:0; font-size:20px; }
+    #tokenBadge { background:#2b3568; padding:6px 10px; border-radius:999px; }
+    #skillGrid { display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; margin-top:10px; }
+    .skill-col { display:flex; flex-direction:column; gap:10px; }
+    .skill-node { position:relative; border-radius:10px; padding:10px; background:#1e2545; min-height:70px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:14px; border:1px solid rgba(255,255,255,.06); }
+    .skill-node.locked { opacity:.5; }
+    .skill-node.available { outline:2px solid #66bb6a; cursor:pointer; }
+    .skill-node.unlocked { background:#274463; border-color:#66bb6a; box-shadow:inset 0 0 0 2px rgba(102,187,106,.35); }
+    .branch-title{ font-size:12px; opacity:.7; text-align:center; margin:6px 0 -4px; }
+    .skill-help { font-size:12px; opacity:.7; margin-top:6px; }
   </style>
 </head>
 <body>
   <div id="ui">
     <div id="row1">
-      <button id="dig" class="active">⛏️ Creuser (-5 or, +5 terre)</button>
-      <button id="wall">🧱 Mur (50 terre)</button>
+      <button id="dig" class="active">⛏️ Creuser / Détruire (Roche: -5 or → +10 terre · Mur: -5 or → +5 terre)</button>
+      <button id="wall">🧱 Mur (25 terre)</button>
       <button id="start">▶️ Vague</button>
+      <button id="skillBtn">🌿 Arbre de compétences</button>
     </div>
     <div id="row2" style="margin-top:8px">
+      <button id="tower-basic" class="tower-btn"><span class="dot" style="background:#ffffff"></span>Tour basique</button>
       <button id="tower-yellow" class="tower-btn"><span class="dot" style="background:#ffd54f"></span>Tour électrique</button>
       <button id="tower-red" class="tower-btn"><span class="dot" style="background:#ef5350"></span>Tour de feu</button>
       <button id="tower-blue" class="tower-btn"><span class="dot" style="background:#64b5f6"></span>Tour de glace</button>
       <button id="tower-brown" class="tower-btn"><span class="dot" style="background:#8d6e63"></span>Tour de terre</button>
       <button id="tower-green" class="tower-btn"><span class="dot" style="background:#66bb6a"></span>Tour herbe</button>
     </div>
+    <div id="row3" style="margin-top:6px; font-size:12px; opacity:.85"></div>
     <div id="stats"></div>
   </div>
+
+  <div id="skillModal">
+    <div id="skillPanel">
+      <div id="skillHeader">
+        <h2>Arbre de compétences</h2>
+        <div id="tokenBadge">🔬 Jetons: <span id="tokenCount">0</span></div>
+      </div>
+      <div class="skill-help">Jetons gagnés: 1er à la vague 3, 2e à la vague 5, puis à 10, 15, 20, 25, ...</div>
+      <div id="skillGrid">
+        <!-- Colonnes par branche: Basique | Jaune | Rouge | Bleu | Marron -->
+        <div class="skill-col" id="col-basic">
+          <div class="branch-title">Branche Basique</div>
+          <div class="skill-node" data-node="basic1">1. Tour normale</div>
+          <div class="skill-node" data-node="basic2">2. Amélioration tour normale (max 5)</div>
+          <div class="skill-node" data-node="basic3">3. Amélio. tour normale (max 10)</div>
+          <div class="skill-node" data-node="basic4">4. (à venir)</div>
+          <div class="skill-node" data-node="basic5">5. (à venir)</div>
+        </div>
+        <div class="skill-col" id="col-yellow">
+          <div class="branch-title">Branche Jaune</div>
+          <div class="skill-node" data-node="yellow1">3. Débloque tour jaune</div>
+          <div class="skill-node" data-node="yellow2">4. Amélioration jaune (max 5)</div>
+          <div class="skill-node" data-node="yellow3">5. (à venir)</div>
+          <div class="skill-node locked">—</div>
+          <div class="skill-node locked">—</div>
+        </div>
+        <div class="skill-col" id="col-red">
+          <div class="branch-title">Branche Rouge</div>
+          <div class="skill-node" data-node="red1">3. Débloque tour rouge</div>
+          <div class="skill-node" data-node="red2">4. Amélioration rouge (max 5)</div>
+          <div class="skill-node" data-node="red3">5. (à venir)</div>
+          <div class="skill-node locked">—</div>
+          <div class="skill-node locked">—</div>
+        </div>
+        <div class="skill-col" id="col-blue">
+          <div class="branch-title">Branche Bleue</div>
+          <div class="skill-node" data-node="blue1">3. Débloque tour bleue</div>
+          <div class="skill-node" data-node="blue2">4. Amélioration bleue (max 5)</div>
+          <div class="skill-node" data-node="blue3">5. (à venir)</div>
+          <div class="skill-node locked">—</div>
+          <div class="skill-node locked">—</div>
+        </div>
+        <div class="skill-col" id="col-brown">
+          <div class="branch-title">Branche Marron</div>
+          <div class="skill-node" data-node="brown1">3. Débloque tour marron</div>
+          <div class="skill-node" data-node="brown2">4. Amélioration marron (max 5)</div>
+          <div class="skill-node" data-node="brown3">5. (à venir)</div>
+          <div class="skill-node locked">—</div>
+          <div class="skill-node locked">—</div>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-top:14px;"><button id="closeSkill">Fermer</button></div>
+    </div>
+  </div>
+
   <button id="upgradeBtn"></button>
-  <canvas id="c" width="960" height="576"></canvas>
+  <canvas id="c" width="960" height="576" margin-top="200px"></canvas>
 
   <script>
     // --- Paramètres de la grille ---
@@ -78,7 +150,7 @@
     }
     computeDistances();
 
-    // Ennemi
+    // --- Ennemi ---
     class Enemy {
       constructor() {
         this.r = spawn.r; this.c = spawn.c;
@@ -121,20 +193,74 @@
       }
     }
 
-    // Tours
+    // --- Tours ---
     const TOWER_DEFS = {
+      basic:  { name:'Basique',    color:'#ffffff', speed:1.2, targets:1, range:3, damage:7 }, // moyenne en tout
       yellow: { name:'Electrique', color:'#ffd54f', speed:1.2, targets:4, range:2, damage:5 },
-      red:    { name:'Feu', color:'#ef5350', speed:2.5, targets:1, range:3, damage:5 },
-      blue:   { name:'Glace', color:'#64b5f6', speed:0.7, targets:1, range:5, damage:10 },
-      brown:  { name:'Terre', color:'#8d6e63', speed:0.3, targets:1, range:2, damage:20 },
-      green:  { name:'Herbe', color:'#66bb6a', speed:1.0, targets:1, range:3, damage:8 },
+      red:    { name:'Feu',        color:'#ef5350', speed:2.5, targets:1, range:3, damage:5 },
+      blue:   { name:'Glace',      color:'#64b5f6', speed:0.7, targets:1, range:5, damage:10 },
+      brown:  { name:'Terre',      color:'#8d6e63', speed:0.3, targets:1, range:2, damage:20 },
+      green:  { name:'Herbe',      color:'#66bb6a', speed:1.0, targets:1, range:3, damage:8 },
     };
 
-    const towerCounts = { yellow:0, red:0, blue:0, brown:0, green:0 };
-    const towerUpgrades = { yellow:0, red:0, blue:0, brown:0, green:0 };
-    const BASE_TOWER_COST = 50;
-    function towerPrice(type){ return BASE_TOWER_COST + 10 * towerCounts[type]; }
-    function upgradePrice(type){ return 150 + 20 * towerUpgrades[type]; }
+    const towerCounts   = { basic:0, yellow:0, red:0, blue:0, brown:0, green:0 };
+    const towerUpgrades = { basic:0, yellow:0, red:0, blue:0, brown:0, green:0 };
+
+    // Coût fixe par règles
+    function towerPrice(type){
+      if (type==='basic') return 50;
+      if (['yellow','red','blue','brown'].includes(type)) return 100;
+      if (type==='green') return 100; // aligné sur tours colorées
+      return 9999;
+    }
+
+    // Prix d'upgrade selon type et niveau suivant
+    function upgradePrice(tower){
+      const nextLevel = tower.level + 1;
+      if (tower.type==='basic'){
+        const costs = {2:70, 3:100, 4:150, 5:250};
+        return costs[nextLevel] ?? Infinity;
+      }
+      if (['yellow','red','blue','brown','green'].includes(tower.type)){
+        const costs = {2:80, 3:120, 4:180, 5:300};
+        return costs[nextLevel] ?? Infinity;
+      }
+      return Infinity;
+    }
+
+    // --- Arbre de compétences (états) ---
+    // false = pas débloqué, true = débloqué
+    const tech = {
+      basic1:true,  // 1. Tour normale déjà débloquée au départ
+      basic2:false, basic3:false, basic4:false, basic5:false,
+      yellow1:false, yellow2:false, yellow3:false,
+      red1:false,    red2:false,    red3:false,
+      blue1:false,   blue2:false,   blue3:false,
+      brown1:false,  brown2:false,  brown3:false,
+    };
+
+    function isTowerUnlocked(type){
+      if (type==='basic') return tech.basic1; // débloquée au départ
+      if (type==='yellow') return tech.yellow1; // palier 3
+      if (type==='red')    return tech.red1;
+      if (type==='blue')   return tech.blue1;
+      if (type==='brown')  return tech.brown1;
+      if (type==='green')  return true; // herbe non dans l'arbre pour l'instant
+      return true;
+    }
+    function maxLevelFor(type){
+      if (type==='basic') {
+        if (tech.basic3) return 10;
+        if (tech.basic2) return 5;
+        return 1; // pas d'amélioration sans tech
+      }
+      if (type==='yellow') return tech.yellow2 ? 5 : 1;
+      if (type==='red')    return tech.red2    ? 5 : 1;
+      if (type==='blue')   return tech.blue2   ? 5 : 1;
+      if (type==='brown')  return tech.brown2  ? 5 : 1;
+      if (type==='green')  return 5; // hors arbre
+      return 5;
+    }
 
     const towers = [];
     class Tower {
@@ -144,7 +270,7 @@
         this.x=c*TILE + TILE/2;
         this.y=r*TILE + TILE/2;
         this.level=1;
-        this.upgraded = false;
+        this.cooldown=0;
         this.updateStats();
       }
       updateStats(){
@@ -152,20 +278,13 @@
         this.rate = Math.max(3, Math.round(30 / (this.def.speed * (1+0.1*(this.level-1)))));
         this.damage = this.def.damage + 5*(this.level-1);
         this.targets = this.def.targets;
-        this.cooldown=0;
       }
-      upgrade(){
-        if (this.upgraded) return; // ✅ empêche 2 améliorations
-        this.level++;
-        this.upgraded = true; 
-        towerUpgrades[this.type]++;
-        this.updateStats();
-      }
+      canUpgrade(){ return this.level < maxLevelFor(this.type); }
+      upgrade(){ if (!this.canUpgrade()) return; this.level++; towerUpgrades[this.type]++; this.updateStats(); }
       draw(){
         ctx.fillStyle=this.def.color;
         ctx.fillRect(this.c*TILE+8, this.r*TILE+8, TILE-16, TILE-16);
-        ctx.fillStyle="#fff";
-        ctx.font="10px sans-serif";
+        ctx.fillStyle="#000"; ctx.font="bold 10px system-ui";
         ctx.fillText(this.level, this.c*TILE+TILE/2-3, this.r*TILE+TILE/2+3);
       }
       step(enemies){
@@ -182,13 +301,6 @@
           for (let i=0;i<n;i++) bullets.push(new Bullet(this.x, this.y, inRange[i].e, this.damage));
           this.cooldown = this.rate;
         }
-      }
-      draw(){
-        ctx.fillStyle=this.def.color;
-        ctx.fillRect(this.c*TILE+8, this.r*TILE+8, TILE-16, TILE-16);
-        ctx.fillStyle="#fff";
-        ctx.font="10px sans-serif";
-        ctx.fillText(this.level, this.c*TILE+TILE/2-3, this.r*TILE+TILE/2+3);
       }
     }
 
@@ -208,28 +320,42 @@
       draw(){ ctx.fillStyle='#fff'; ctx.fillRect(this.x-2,this.y-2,4,4); }
     }
 
-    // Jeu
+    // --- Jeu ---
     const enemies=[]; let frame=0, gold=100, dirt=0, wave=0, baseHP=10;
     let mode='dig';
     let selectedTower=null;
+
+    // Vagues & jetons de recherche
+    let spawningCount=0;       // nombre d'ennemis programmés pour la vague courante
+    let spawnedSoFar=0;        // combien ont été créés
+    let spawnFinished=false;   // la vague a fini de générer
+    let wavesCompleted=0;      // vagues complétées (tous ennemis éliminés)
+    let researchTokens=0;      // démarrage à 0, gains: 3,5 puis 10,15,20...
 
     const ui = {
       digBtn: document.getElementById('dig'),
       wallBtn: document.getElementById('wall'),
       startBtn: document.getElementById('start'),
       stats: document.getElementById('stats'),
+      btnBasic: document.getElementById('tower-basic'),
       btnYellow: document.getElementById('tower-yellow'),
       btnRed: document.getElementById('tower-red'),
       btnBlue: document.getElementById('tower-blue'),
       btnBrown: document.getElementById('tower-brown'),
       btnGreen: document.getElementById('tower-green'),
       upgradeBtn: document.getElementById('upgradeBtn'),
+      row3: document.getElementById('row3'),
+      skillBtn: document.getElementById('skillBtn'),
+      skillModal: document.getElementById('skillModal'),
+      tokenCount: document.getElementById('tokenCount'),
+      closeSkill: document.getElementById('closeSkill'),
     };
 
     function setMode(m){
       mode=m; selectedTower=null; ui.upgradeBtn.style.display="none";
       ui.digBtn.classList.toggle('active', m==='dig');
       ui.wallBtn.classList.toggle('active', m==='wall');
+      ui.btnBasic.classList.toggle('active', m==='tower-basic');
       ui.btnYellow.classList.toggle('active', m==='tower-yellow');
       ui.btnRed.classList.toggle('active', m==='tower-red');
       ui.btnBlue.classList.toggle('active', m==='tower-blue');
@@ -238,12 +364,51 @@
     }
     ui.digBtn.onclick = ()=> setMode('dig');
     ui.wallBtn.onclick = ()=> setMode('wall');
+    ui.btnBasic.onclick = ()=> setMode('tower-basic');
     ui.btnYellow.onclick = ()=> setMode('tower-yellow');
     ui.btnRed.onclick = ()=> setMode('tower-red');
     ui.btnBlue.onclick = ()=> setMode('tower-blue');
     ui.btnBrown.onclick = ()=> setMode('tower-brown');
     ui.btnGreen.onclick = ()=> setMode('tower-green');
     ui.startBtn.onclick = startWave;
+
+    // --- Skill UI ---
+    ui.skillBtn.onclick = ()=> { ui.skillModal.style.display='flex'; refreshSkillUI(); };
+    ui.closeSkill.onclick = ()=> ui.skillModal.style.display='none';
+    document.getElementById('skillGrid').addEventListener('click', (e)=>{
+      const node = e.target.closest('.skill-node.available');
+      if (!node) return;
+      if (researchTokens<=0) return;
+      const key = node.dataset.node;
+      tech[key] = true;
+      researchTokens--; ui.tokenCount.textContent = researchTokens;
+      refreshSkillUI();
+      updateTowerButtons();
+    });
+
+    function refreshSkillUI(){
+      ui.tokenCount.textContent = researchTokens;
+      const nodes = document.querySelectorAll('.skill-node[data-node]');
+      nodes.forEach(n=>{
+        const key = n.dataset.node;
+        n.classList.remove('locked','available','unlocked');
+        if (tech[key]) { n.classList.add('unlocked'); return; }
+        // conditions de disponibilité par branche
+        const [branch,level] = key.match(/([a-z]+)(\d+)/).slice(1);
+        let available=false;
+        if (branch==='basic'){
+          if (level==='1') available = true; // déjà débloquée mais garde la logique
+          else if (level==='2') available = tech.basic1===true; // après basic1
+          else if (level==='3') available = tech.basic2===true; // palier 3 accessible après basic2
+          else available = tech.basic3===true; // placeholders liés à la branche basique
+        } else {
+          if (level==='1') available = tech.basic2===true; // palier 3: nécessite basic2
+          else if (level==='2') available = tech[branch+'1']===true; // palier 4: lié à sa branche
+          else available = tech[branch+'2']===true; // palier 5 placeholder
+        }
+        n.classList.add(available? 'available':'locked');
+      });
+    }
 
     canvas.addEventListener('mousedown', e=>{
       const rect = canvas.getBoundingClientRect();
@@ -257,42 +422,50 @@
       // Clique sur une tour ?
       const found = towers.find(t=>t.r===r && t.c===c);
       if (found){
-        if (found.upgraded) {
-          ui.upgradeBtn.style.display="none"; // ✅ déjà améliorée → pas de bouton
-          return;
-        }
         selectedTower=found;
-        const price = upgradePrice(found.type);
-        ui.upgradeBtn.textContent = "Améliorer ("+price+" or)";
+        const price = upgradePrice(found);
+        const canUp = found.canUpgrade() && Number.isFinite(price);
+        if (!canUp){ ui.upgradeBtn.style.display="none"; return; }
+        ui.upgradeBtn.textContent = `Améliorer (${price} or)`;
         ui.upgradeBtn.style.left = (c*TILE+canvas.offsetLeft+40)+"px";
         ui.upgradeBtn.style.top  = (r*TILE+canvas.offsetTop)+"px";
         ui.upgradeBtn.style.display="block";
         return;
       }
 
-
       if (mode==='dig'){
-        if (grid[r][c]===TILE_ROCK && gold>=5){
+        // Détruire un mur: -5 or, +5 terre
+        if (grid[r][c]===TILE_WALL && gold>=5){
           grid[r][c] = TILE_EMPTY; gold -= 5; dirt += 5; computeDistances();
+          return;
+        }
+        // Détruire une roche: -5 or, +10 terre
+        if (grid[r][c]===TILE_ROCK && gold>=5){
+          grid[r][c] = TILE_EMPTY; gold -= 5; dirt += 10; computeDistances();
+          return;
         }
       } else if (mode==='wall'){
-        if (grid[r][c]===TILE_EMPTY && dirt>=50){
-          grid[r][c] = TILE_WALL; dirt -= 50; computeDistances();
+        // Construire un mur: 25 terre
+        if (grid[r][c]===TILE_EMPTY && dirt>=25){
+          grid[r][c] = TILE_WALL; dirt -= 25; computeDistances();
         }
       } else if (mode.startsWith('tower-')){
         const type = mode.split('-')[1];
-        if (grid[r][c]!==TILE_ROCK && grid[r][c]!==TILE_WALL) return;
+        const ttype = type; // même nom
+        if (!isTowerUnlocked(ttype)) return; // verrouillé par l'arbre
+        if (grid[r][c]!==TILE_ROCK && grid[r][c]!==TILE_WALL) return; // poser sur roche/mur
         if (towers.some(t=>t.r===r&&t.c===c)) return;
-        const price = towerPrice(type);
+        const price = towerPrice(ttype);
         if (gold < price) return;
-        towers.push(new Tower(r,c,TOWER_DEFS[type], type));
-        gold -= price; towerCounts[type]++;
+        towers.push(new Tower(r,c,TOWER_DEFS[ttype], ttype));
+        gold -= price; towerCounts[ttype]++;
       }
     });
 
     ui.upgradeBtn.onclick = ()=>{
       if (!selectedTower) return;
-      const price = upgradePrice(selectedTower.type);
+      const price = upgradePrice(selectedTower);
+      if (!selectedTower.canUpgrade() || !Number.isFinite(price)) { ui.upgradeBtn.style.display='none'; return; }
       if (gold >= price){
         gold -= price;
         selectedTower.upgrade();
@@ -302,8 +475,22 @@
 
     function startWave(){
       wave++;
-      for (let i=0;i<10+wave*2;i++){
-        setTimeout(()=> enemies.push(new Enemy()), i*600);
+      const toSpawn = 10 + wave*2;
+      spawningCount = toSpawn; spawnedSoFar=0; spawnFinished=false;
+      for (let i=0;i<toSpawn;i++){
+        setTimeout(()=> { enemies.push(new Enemy()); spawnedSoFar++; if (spawnedSoFar===spawningCount) spawnFinished=true; }, i*600);
+      }
+    }
+
+    function maybeCompleteWave(){
+      if (enemies.length===0 && spawnFinished && wave>0){
+        wavesCompleted++;
+        spawnFinished=false; // éviter plusieurs comptages
+        // Attribution des jetons: 3, 5, puis tous les 5 à partir de 10
+        if (wavesCompleted===3) researchTokens++;
+        else if (wavesCompleted===5) researchTokens++;
+        else if (wavesCompleted>=10 && wavesCompleted % 5 === 0) researchTokens++;
+        refreshSkillUI();
       }
     }
 
@@ -326,11 +513,25 @@
     }
 
     function updateTowerButtons(){
+      // Textes avec prix (fixes)
+      ui.btnBasic.textContent  = `🗼 Basique (${towerPrice('basic')} or)`;
       ui.btnYellow.textContent = `🗼 Jaune (${towerPrice('yellow')} or)`;
       ui.btnRed.textContent    = `🗼 Rouge (${towerPrice('red')} or)`;
       ui.btnBlue.textContent   = `🗼 Bleue (${towerPrice('blue')} or)`;
       ui.btnBrown.textContent  = `🗼 Marron (${towerPrice('brown')} or)`;
       ui.btnGreen.textContent  = `🗼 Verte (${towerPrice('green')} or)`;
+
+      // Verrous visuels selon l'arbre
+      const lock = (btn, unlocked, hint)=>{ btn.disabled = !unlocked; btn.title = unlocked? '' : hint; };
+      lock(ui.btnBasic,  isTowerUnlocked('basic'),  'Débloquez d\'abord "Tour normale" (palier 1) dans l\'arbre.');
+      lock(ui.btnYellow, isTowerUnlocked('yellow'), 'Débloquez la branche jaune (palier 3).');
+      lock(ui.btnRed,    isTowerUnlocked('red'),    'Débloquez la branche rouge (palier 3).');
+      lock(ui.btnBlue,   isTowerUnlocked('blue'),   'Débloquez la branche bleue (palier 3).');
+      lock(ui.btnBrown,  isTowerUnlocked('brown'),  'Débloquez la branche marron (palier 3).');
+      // herbe libre
+
+      // Info court
+      ui.row3.textContent = `Upgrades max — Basique: ${maxLevelFor('basic')} • Jaune: ${maxLevelFor('yellow')} • Rouge: ${maxLevelFor('red')} • Bleue: ${maxLevelFor('blue')} • Marron: ${maxLevelFor('brown')}`;
     }
 
     function loop(){
@@ -341,6 +542,8 @@
       for (let i=bullets.length-1;i>=0;i--) if (!bullets[i].alive) bullets.splice(i,1);
       for (let i=enemies.length-1;i>=0;i--) if (!enemies[i].alive) enemies.splice(i,1);
 
+      maybeCompleteWave();
+
       ctx.clearRect(0,0,canvas.width,canvas.height);
       drawGrid();
       for (const t of towers) t.draw();
@@ -349,7 +552,7 @@
 
       updateTowerButtons();
       ui.stats.textContent =
-        `Vague: ${wave}  |  Or: ${gold}  |  Terre: ${dirt}  |  Base: ${baseHP}HP  |  Ennemis: ${enemies.length}`;
+        `Vague: ${wave}  |  Vagues complétées: ${wavesCompleted}  |  Jetons: ${researchTokens}  |  Or: ${gold}  |  Terre: ${dirt}  |  Base: ${baseHP}HP  |  Ennemis: ${enemies.length}`;
 
       if (baseHP<=0){
         ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -360,6 +563,10 @@
       requestAnimationFrame(loop);
     }
     loop();
+
+    // Démarrage : basic1 déjà débloquée, jetons à 0
+    refreshSkillUI();
+    updateTowerButtons();
   </script>
 </body>
 </html>
