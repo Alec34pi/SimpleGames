@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <title>Digfender – Or, Terre & Murs (V4)</title>
+  <title>Digfender – Or, Terre & Murs (V4 + destruction)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html,body { margin:0; background:#0f1220; color:#e6e6f0; font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
@@ -15,6 +15,8 @@
     .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
     #stats { margin-top:8px; font-size:14px; opacity:.9; white-space:pre; }
     #upgradeBtn { position:absolute; display:none; background:#3c5a2a; padding:6px 10px; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,.3); }
+    /* Nouveau bouton pour détruire une tour */
+    #destroyBtn { position:absolute; display:none; background:#7a1f1f; color:#fff; padding:6px 10px; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,.3); }
     canvas { display:block; margin:0 auto; image-rendering: pixelated; }
 
     /* --- Arbre de compétences --- */
@@ -109,6 +111,7 @@
   </div>
 
   <button id="upgradeBtn"></button>
+  <button id="destroyBtn"></button>
   <canvas id="c" width="960" height="576" margin-top="200px"></canvas>
 
   <script>
@@ -271,6 +274,7 @@
         this.y=r*TILE + TILE/2;
         this.level=1;
         this.cooldown=0;
+        this.spentGold = towerPrice(type); // coût d'achat enregistré pour remboursement
         this.updateStats();
       }
       updateStats(){
@@ -280,7 +284,14 @@
         this.targets = this.def.targets;
       }
       canUpgrade(){ return this.level < maxLevelFor(this.type); }
-      upgrade(){ if (!this.canUpgrade()) return; this.level++; towerUpgrades[this.type]++; this.updateStats(); }
+      upgrade(){
+        if (!this.canUpgrade()) return;
+        const price = upgradePrice(this);
+        if (!Number.isFinite(price)) return;
+        this.level++; towerUpgrades[this.type]++;
+        this.spentGold += price; // historique d'investissement
+        this.updateStats();
+      }
       draw(){
         ctx.fillStyle=this.def.color;
         ctx.fillRect(this.c*TILE+8, this.r*TILE+8, TILE-16, TILE-16);
@@ -344,6 +355,7 @@
       btnBrown: document.getElementById('tower-brown'),
       btnGreen: document.getElementById('tower-green'),
       upgradeBtn: document.getElementById('upgradeBtn'),
+      destroyBtn: document.getElementById('destroyBtn'),
       row3: document.getElementById('row3'),
       skillBtn: document.getElementById('skillBtn'),
       skillModal: document.getElementById('skillModal'),
@@ -352,7 +364,7 @@
     };
 
     function setMode(m){
-      mode=m; selectedTower=null; ui.upgradeBtn.style.display="none";
+      mode=m; selectedTower=null; ui.upgradeBtn.style.display="none"; ui.destroyBtn.style.display="none";
       ui.digBtn.classList.toggle('active', m==='dig');
       ui.wallBtn.classList.toggle('active', m==='wall');
       ui.btnBasic.classList.toggle('active', m==='tower-basic');
@@ -423,15 +435,28 @@
       const found = towers.find(t=>t.r===r && t.c===c);
       if (found){
         selectedTower=found;
+        // Bouton upgrade
         const price = upgradePrice(found);
         const canUp = found.canUpgrade() && Number.isFinite(price);
-        if (!canUp){ ui.upgradeBtn.style.display="none"; return; }
-        ui.upgradeBtn.textContent = `Améliorer (${price} or)`;
-        ui.upgradeBtn.style.left = (c*TILE+canvas.offsetLeft+40)+"px";
-        ui.upgradeBtn.style.top  = (r*TILE+canvas.offsetTop)+"px";
-        ui.upgradeBtn.style.display="block";
+        if (canUp){
+          ui.upgradeBtn.textContent = `Améliorer (${price} or)`;
+          ui.upgradeBtn.style.left = (c*TILE+canvas.offsetLeft+40)+"px";
+          ui.upgradeBtn.style.top  = (r*TILE+canvas.offsetTop)+"px";
+          ui.upgradeBtn.style.display="block";
+        } else {
+          ui.upgradeBtn.style.display="none";
+        }
+        // Bouton détruire (toujours dispo)
+        ui.destroyBtn.textContent = `Détruire (+${Math.floor(found.spentGold/2)} or)`;
+        ui.destroyBtn.style.left = (c*TILE+canvas.offsetLeft+40)+"px";
+        ui.destroyBtn.style.top  = (r*TILE+canvas.offsetTop+40)+"px";
+        ui.destroyBtn.style.display="block";
         return;
       }
+
+      // Pas une tour: cacher les boutons contextuels
+      ui.upgradeBtn.style.display="none";
+      ui.destroyBtn.style.display="none";
 
       if (mode==='dig'){
         // Détruire un mur: -5 or, +5 terre
@@ -470,7 +495,21 @@
         gold -= price;
         selectedTower.upgrade();
         ui.upgradeBtn.style.display="none";
+        // Mettre à jour le texte du bouton détruire après upgrade
+        ui.destroyBtn.textContent = `Détruire (+${Math.floor(selectedTower.spentGold/2)} or)`;
       }
+    };
+
+    // --- Destruction de tour : remboursement de 50% de l'or investi (achat + upgrades) ---
+    ui.destroyBtn.onclick = ()=>{
+      if (!selectedTower) return;
+      const refund = Math.floor(selectedTower.spentGold/2);
+      gold += refund;
+      const idx = towers.indexOf(selectedTower);
+      if (idx>=0) towers.splice(idx,1);
+      selectedTower = null;
+      ui.upgradeBtn.style.display="none";
+      ui.destroyBtn.style.display="none";
     };
 
     function startWave(){
